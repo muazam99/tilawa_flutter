@@ -1,6 +1,6 @@
 # Plan: Tilawa Flutter SDK
 
-**Status:** Phase 3 in progress: development SDK implementation prepared, validation underway. Phase 2 design checkpoint accepted; iOS and deferred Android checks remain release gates.
+**Status:** Phase 3 in progress: core SDK implemented and Android public-API replay verified; downloader fault/recovery and new capture-helper checks pending. Phase 2 design checkpoint accepted; iOS and deferred Android checks remain release gates.
 **Created:** 2026-10-12
 **Last updated:** 2026-10-12
 **Package working name:** `tilawa_flutter`
@@ -364,8 +364,8 @@ As of 2026-10-12:
 ### Next-session handoff
 
 1. Read this plan, `PHASE3.md` and README, then inspect SDK Git status. Public development source now exists under lib/. Resume Phase 3 validation/remaining gaps instead of restarting API discussion.
-2. The app `Tilawa Bridge Probe` (`dev.qiyam.tilawa_bridge_probe`) is installed on the owner's Infinix. Last installed arm64 release uses `PROBE_AUTORUN=true`, `PROBE_CYCLES=10`, `PROBE_MIC_SECONDS=300`, default one thread. Fresh launch runs replay plus ten recreation cycles; Start mic is manual and stops automatically after five minutes in this measurement build only. This is not an SDK duration limit. It keeps its own foreground Android window awake; capture was manually stopped by the owner.
-3. The Phase 2 contract is the accepted design basis. Phase 3 has source-prepared serialization, immutable observations, loopback/WASM integration, local/bundled/downloaded integrity-checked assets and optional foreground capture. Check PHASE3 actual outcomes before claiming working facade/cleanup/interrupt behaviour. No authored test suite or Phase 4/5 work authorized.
+2. The installed app still uses package `dev.qiyam.tilawa_bridge_probe`, but the latest 76.9 MB arm64 APK was built with `-t lib/sdk_probe.dart`. Opening it runs the public-API replay/reset/silence/disposal probe and displays SDK_COMPLETE. No microphone starts. The older interactive Phase 1 screen can be restored by building default lib/main.dart with its optional measurement defines; those defines are not SDK limits.
+3. Read PHASE3 actual outcomes: the public facade produced 113:1-5, five matches/49 progress messages, canonical stop/event identity, new-run reset, empty silence result, successful disposal and verified local installation reuse on Android. Phone was online; downloader fault paths, new microphone helper and network-disabled facade checks remain. No authored test suite or Phase 4/5 work authorized.
 4. Deferred validation: 125.2 s offline live pass had zero overruns and mean feed220ms per480ms chunk, but longer capture/interruption/route/denial and resource budgets remain. Renderer reached about486MiB PSS during recreation. Mac/iPhone unavailable. Reconnect/authorize device checks when resumed; do not advertise verified iOS or finalize architecture from Android alone.
 
 Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flutter lockfiles are saved. Downloaded source, model/corpus and generated runtime/build products are ignored by Git. The local release APK is at `prototype/app/build/app/outputs/flutter-apk/app-release.apk` and can be regenerated using the prototype README. Dedicated local repository/checkpoint commits were owner-authorized; no remote, push, publication or Qiyam integration occurred.
@@ -390,6 +390,7 @@ Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flut
 - 2026-10-12: Qiyam's powered features always free. Public SDK documentation must still explain separate model/corpus terms.
 - 2026-10-12: Owner approved feasibility -> API -> audio/assets -> tracking/metadata -> example/release phase order. Bridge architecture stays provisional until verified.
 - 2026-10-12: Owner accepted current Android feasibility evidence for Phase 2 API design. iPhone and deferred Android/resource checks remain release gates; this is not full both-platform feasibility approval.
+- 2026-10-12: Owner approved proceeding from the delivered API contract to Phase 3. Public development SDK implemented; first Android public-API replay passed online. Asset fault/recovery and new microphone-helper checks remain in Phase 3.
 
 ## 15. Source references
 

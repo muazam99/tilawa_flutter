@@ -1,0 +1,3 @@
+# These bytes are covered by assets/runtime/manifest.json integrity hashes.
+# Preserve them exactly on Windows checkout rather than converting LF to CRLF.
+assets/runtime/** -text

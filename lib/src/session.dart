@@ -512,6 +512,9 @@ final class TilawaSession {
 
   Future<TilawaAyahMetadata?> resolveMetadata(TilawaAyahRef ayah) async {
     _usable();
+    if (_state == TilawaLifecycle.disposing) {
+      throw const TilawaException('disposed', 'Session is closing.');
+    }
     final resolver = _resolver;
     if (resolver == null) return null;
     final run = _runId;
@@ -571,12 +574,18 @@ final class TilawaSession {
     _stateTo(TilawaLifecycle.disposing);
     _disposing = (() async {
       TilawaException? error;
+      final deadlineClock = Stopwatch()..start();
+      Duration remaining() {
+        final budget = _config.disposalDeadline - deadlineClock.elapsed;
+        return budget.isNegative ? Duration.zero : budget;
+      }
+
       try {
         final capture = captureBindings[this];
         captureBindings[this] = null;
         if (capture != null) {
           try {
-            await capture().timeout(_config.disposalDeadline);
+            await capture().timeout(remaining());
           } catch (failure) {
             error = TilawaException(
               'disposalFailed',
@@ -585,7 +594,7 @@ final class TilawaSession {
           }
         }
         try {
-          await _queue.timeout(_config.disposalDeadline);
+          await _queue.timeout(remaining());
         } on TimeoutException {
           _quarantined = true;
         }
@@ -598,7 +607,7 @@ final class TilawaSession {
             onError: (Object _, StackTrace __) {},
           ),
         );
-        await cleanup.timeout(_config.disposalDeadline);
+        await cleanup.timeout(remaining());
       } catch (failure) {
         error = TilawaException('disposalFailed', '$failure');
       } finally {

@@ -35,6 +35,7 @@ final class TilawaMicrophone with WidgetsBindingObserver {
   Future<void>? _draining, _starting, _stopping, _disposing;
   TilawaCaptureState _state = TilawaCaptureState.idle;
   bool _interruptionPending = false;
+  bool _discardOnClose = false;
   static const _chunkBytes = 15360; // 480 ms client mono16kPCM16.
   Stream<TilawaCaptureState> get states => _states.stream;
   Stream<TilawaException> get errors => _errors.stream;
@@ -62,7 +63,10 @@ final class TilawaMicrophone with WidgetsBindingObserver {
         'Session already has an attached microphone helper.',
       );
     }
-    captureBindings[session] = capture.dispose;
+    captureBindings[session] = () {
+      capture._discardOnClose = true;
+      return capture.dispose();
+    };
     WidgetsBinding.instance.addObserver(capture);
     return capture;
   }
@@ -158,7 +162,11 @@ final class TilawaMicrophone with WidgetsBindingObserver {
   }
 
   void _capture(Uint8List bytes) {
-    if (_state != TilawaCaptureState.capturing || _interruptionPending) return;
+    if (_state != TilawaCaptureState.capturing ||
+        _interruptionPending ||
+        _discardOnClose) {
+      return;
+    }
     if (bytes.length + _remainder.length + _chunks.length * _chunkBytes >
         maxPendingChunks * _chunkBytes) {
       _interrupt(
@@ -205,13 +213,17 @@ final class TilawaMicrophone with WidgetsBindingObserver {
     _draining =
         (() async {
               while (_chunks.isNotEmpty) {
+                if (_discardOnClose) {
+                  _chunks.clear();
+                  return;
+                }
                 await session.feed(_pcm(_chunks.removeFirst()));
               }
             })()
             .catchError((Object error) {
               _chunks.clear();
               _remainder = Uint8List(0);
-              _interrupt('audioOverrun', error);
+              if (!_discardOnClose) _interrupt('audioOverrun', error);
             })
             .whenComplete(() {
               _draining = null;
@@ -237,7 +249,9 @@ final class TilawaMicrophone with WidgetsBindingObserver {
       _audio = null;
       _recordState = null;
       await _draining;
-      if (_remainder.isNotEmpty) await session.feed(_pcm(_remainder));
+      if (_remainder.isNotEmpty && !_discardOnClose) {
+        await session.feed(_pcm(_remainder));
+      }
       _remainder = Uint8List(0);
       _stateTo(TilawaCaptureState.idle);
     })().whenComplete(() => _stopping = null);
@@ -257,7 +271,17 @@ final class TilawaMicrophone with WidgetsBindingObserver {
                   : TilawaException('captureFailed', '$error'),
             );
           }
-          await stopCapture();
+          try {
+            await stopCapture();
+          } catch (stopError) {
+            if (!_errors.isClosed) {
+              _errors.add(
+                stopError is TilawaException
+                    ? stopError
+                    : TilawaException('captureFailed', '$stopError'),
+              );
+            }
+          }
           await session.interrupt(TilawaInterruption(reason));
           if (_disposing == null) _stateTo(TilawaCaptureState.interrupted);
         } catch (failure) {

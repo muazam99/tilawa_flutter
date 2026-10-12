@@ -43,4 +43,10 @@ Android release builds currently use Flutter's generated debug signing key for l
 
 ## Evidence
 
+### Phase 3 public-facade probe
+
+The app now has a path dependency on the root development SDK. To build the private SDK integration entry point use `flutter build apk --release --target-platform android-arm64 -t lib/sdk_probe.dart`. It installs/reuses the four verified bundled assets, locally decodes/resamples the pinned multi-ayah fixture, feeds the public API and reports canonical stop/result identity, reset, silence, disposal and local asset reuse. No microphone starts. It needs no mounted inference WebView widget on the verified Android run. The separate fixture decoder uses a temporary local WebView.
+
+Latest installed APK is this entry point, not the older interactive Phase 1 mic screen. Restore that screen with the default lib/main.dart entry point if microphone checks are requested. See ../../PHASE3.md for the public facade's actual results and remaining gates. Large assets/audio in this private app remain excluded from root SDK package assets.
+
 See [FEASIBILITY.md](FEASIBILITY.md), including continuation evidence and remaining gates. Device logs have the prefix `TILAWA_PROBE`. Five-minute automatic stop is a configurable measurement-build convenience, not an SDK duration limit. Android offline/live/recreation results do not establish iPhone, longer sustained capture, interruptions or leak-free cleanup.

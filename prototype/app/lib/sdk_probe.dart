@@ -1,5 +1,6 @@
 // Private Phase 3 validation surface. Not the Phase 5 public example.
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
@@ -8,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:tilawa_flutter/tilawa_flutter.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 void main() => runApp(const MaterialApp(home: _SdkProbe()));
 
@@ -58,7 +60,7 @@ class _SdkProbeState extends State<_SdkProbe> {
       final bytes = await rootBundle.load(
         'assets/runtime/multi_113_001_005.audio',
       );
-      final pcm = _wav(bytes);
+      final pcm = await _decode(bytes);
       _log('WAV_PCM samples=${pcm.length}');
       for (var offset = 0; offset < pcm.length; offset += 7680) {
         await session.feed(
@@ -93,50 +95,72 @@ class _SdkProbeState extends State<_SdkProbe> {
     }
   }
 
-  Float32List _wav(ByteData data) {
-    String tag(int offset) => String.fromCharCodes(
-      List.generate(4, (i) => data.getUint8(offset + i)),
+  Future<Float32List> _decode(ByteData data) async {
+    // External input preparation only, using Phase 1's Web Audio conversion.
+    // No microphone, network or private inference adapter API is involved.
+    final controller = WebViewController();
+    final ready = Completer<void>();
+    final result = Completer<String>();
+    ready.future.ignore();
+    result.future.ignore();
+    await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await controller.addJavaScriptChannel(
+      'Fixture',
+      onMessageReceived: (message) {
+        if (message.message == 'ready') {
+          if (!ready.isCompleted) ready.complete();
+        } else if (!result.isCompleted) {
+          if (message.message.startsWith('error:')) {
+            result.completeError(StateError(message.message));
+          } else {
+            result.complete(message.message);
+          }
+        }
+      },
     );
-    if (data.lengthInBytes < 44 || tag(0) != 'RIFF' || tag(8) != 'WAVE') {
-      throw StateError('Fixture is not RIFF WAV.');
+    try {
+      await controller.loadHtmlString('''<html><body><script>
+window.decodeFixture = async function(encoded) {
+  try {
+    const bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0));
+    const context = new AudioContext();
+    let decoded;
+    try { decoded = await context.decodeAudioData(bytes.buffer); }
+    finally { await context.close(); }
+    const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * 16000), 16000);
+    const source = offline.createBufferSource(); source.buffer = decoded;
+    source.connect(offline.destination); source.start();
+    const pcm = (await offline.startRendering()).getChannelData(0);
+    const output = new Uint8Array(pcm.length * 4), view = new DataView(output.buffer);
+    for (let i = 0; i < pcm.length; i++) view.setFloat32(i * 4, pcm[i], true);
+    let binary = '';
+    for (let i = 0; i < output.length; i += 4096) {
+      binary += String.fromCharCode(...output.subarray(i, i + 4096));
     }
-    var rate = 0, channels = 0, bits = 0, format = 0, start = 0, size = 0;
-    for (var offset = 12; offset + 8 <= data.lengthInBytes;) {
-      final length = data.getUint32(offset + 4, Endian.little);
-      final body = offset + 8;
-      if (body + length > data.lengthInBytes) {
-        throw StateError('Truncated WAV.');
-      }
-      if (tag(offset) == 'fmt ') {
-        if (length < 16) throw StateError('Invalid WAV format block.');
-        format = data.getUint16(body, Endian.little);
-        channels = data.getUint16(body + 2, Endian.little);
-        rate = data.getUint32(body + 4, Endian.little);
-        bits = data.getUint16(body + 14, Endian.little);
-      }
-      if (tag(offset) == 'data') {
-        start = body;
-        size = length;
-      }
-      offset = body + length + (length % 2);
-    }
-    _log('WAV_FORMAT pcm=$format rate=$rate channels=$channels bits=$bits');
-    if (format != 1 ||
-        rate != 16000 ||
-        channels != 1 ||
-        bits != 16 ||
-        start == 0 ||
-        size.isOdd) {
-      throw StateError(
-        'Private replay supports only mono 16 kHz PCM16 WAV; convert externally otherwise.',
+    Fixture.postMessage(btoa(binary));
+  } catch (error) { Fixture.postMessage('error:' + error); }
+};
+Fixture.postMessage('ready');
+</script></body></html>''');
+      await ready.future.timeout(const Duration(seconds: 15));
+      final encoded = base64Encode(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
       );
+      await controller.runJavaScript(
+        'window.decodeFixture(${jsonEncode(encoded)});',
+      );
+      final decoded = ByteData.sublistView(
+        base64Decode(await result.future.timeout(const Duration(seconds: 30))),
+      );
+      return Float32List.fromList(
+        List.generate(
+          decoded.lengthInBytes ~/ 4,
+          (i) => decoded.getFloat32(i * 4, Endian.little),
+        ),
+      );
+    } finally {
+      await controller.loadHtmlString('<html><body></body></html>');
     }
-    return Float32List.fromList(
-      List.generate(
-        size ~/ 2,
-        (i) => data.getInt16(start + i * 2, Endian.little) / 32768,
-      ),
-    );
   }
 
   @override
