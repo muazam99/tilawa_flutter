@@ -1,6 +1,6 @@
 # Phase 3 implementation checkpoint
 
-Date: 2026-10-12. Status: core implementation and Android public-API replay verified; Phase 3 remains in progress for asset fault/recovery and new capture-helper validation. Owner accepted Phase 2 contract and authorized Phase 3 by saying proceed. Phase 1 platform/resource gates remain deferred, not erased.
+Date: 2026-10-12. Status: Android asset lifecycle, isolated facade controls, network-disabled public replay and new helper live/lifecycle/denial/background checks passed. Phase 3 remains in progress for remaining capture/bridge fault and route checks. Owner accepted Phase 2 contract and authorized Phase 3 by saying proceed. Phase 1 platform/resource gates remain deferred, not erased.
 
 ## Implemented
 
@@ -18,7 +18,7 @@ Date: 2026-10-12. Status: core implementation and Android public-API replay veri
 - Cross-isolate/process asset stores are unsupported; use one coordinating Dart isolate. Downloads retry from scratch; byte-range resume is not promised.
 - Bundled large AssetBundle files temporarily occupy memory. Default downloadable assets remain separate from SDK archive.
 - Runtime teardown uses ORT release plus page replacement/server closure; system WebView object/renderer destruction timing is not a public guarantee. Failed cleanup keeps installation leases rather than permitting deletion during unknown runtime use.
-- Microphone route/permission/disconnection/start-stop races and native hardware delivery need platform checks. No arbitrary-rate raw PCM converter or background microphone feature is advertised.
+- Microphone route/audio-focus/disconnection/start-stop races and native hardware delivery need additional platform checks; denial/recovery and foreground-background interruption passed on Android below. No arbitrary-rate raw PCM converter or background microphone feature is advertised.
 - iOS/Mac verification, extended sustained checks, resource budgets, 16 KB-page runtime and architecture approval remain release gates.
 
 ## Verification results
@@ -32,9 +32,39 @@ Date: 2026-10-12. Status: core implementation and Android public-API replay veri
 - The probe's OFFLINE_REUSE log label means local filesystem availability/reuse, not a network-disabled facade run. New SDK was checked while online; Phase 1's prior airplane-mode evidence belongs to the earlier probe. No new acoustic latency/memory/accuracy claim from this check.
 - Windows byte integrity: .gitattributes disables text conversion for runtime artifacts, preserving generated SHA-256 values on future Git checkout. Keep vendor notices and binary bytes unchanged.
 
+## Continuation checkpoints
+
+### Phase 3A device checkpoint (2026-10-12)
+
+Physical Infinix X678B/Android 14, online, release build with `PROBE_ASSETS=true`: private `asset_probe.dart` checks completed with ASSET_CHECKS_COMPLETE and SDK_COMPLETE. No authored unit-test suite. Real HTTPS assets/TLS/redirects were used; a private HttpOverrides seam injected initial SocketException failures and slowed response delivery. Storage-only license-text fixtures never entered recognition.
+
+- Real process-kill recovery: first launch downloaded model bytes, logged ASSET_CRASH_READY, then ADB force-stopped the app. Relaunch removed exactly one stale stage. Cancellation after response bytes yielded assetCancelled, no activation and no stale stage.
+- Retry recovered after one injected request failure (five total requests for four tiny files, first-file progress attempt 2). Exhaustion with retries=1 stopped at two requests. SHA-256 mismatch was rejected without retry/activation.
+- Concurrent bundled installs converged on one verified version; cleanup retained the active stage and deletion during installation returned assetsInUse. Later on-disk corruption was rejected; deleting that version preserved another valid version.
+- Fresh pinned download verified all four files (69,246,033 / 5,453,439 / 26,867 / 7,041 bytes), monotonic per-attempt progress and filesystem reuse. Earlier bundled installation was preserved.
+- Recognition using downloaded assets repeated 113:1-5, five matches/49 progress, canonical stop/event result identity, reset and empty silence. Session lease blocked deletion while open; deletion succeeded after disposal.
+- These checks do not establish mid-response automatic retry, every disk failure or cross-process installation locking. Process termination recovery is cleanup plus fresh restart, not byte-range resume. Connectivity-disabled public facade and new helper outcomes follow below.
+
+### Control and offline checkpoint (2026-10-12)
+
+Release build with `PROBE_CONTROLS=true` and `PROBE_MIC=true`, same physical phone. The private control adapter uses the public factory seam, real session/asset verification and 100 ms interruption/disposal budgets; this is isolated facade evidence, not proof of native/WASM preemption.
+
+- Nonfinite audio rejected; two accepted 16,000-sample feeds filled the outstanding limit; one additional sample rejected without being counted. Admission copying survived caller mutation. Accepted work drained to 32,000 samples before canonical coalesced stop.
+- Stalled feed interruption produced incomplete finalization, null sequence and zero processed samples. Reset rejected the quarantined runtime. Injected late transcript was fenced; exactly one session-ended observation and canonical terminal result remained.
+- Queued stop then reset rejected competing stop/new input while reset was active, then returned ready with counters cleared. Disposal during stalled feed completed within its bounded path, disposed the adapter once and rejected late feed completion. CONTROL_CHECKS_COMPLETE recorded.
+- Airplane mode enabled, Wi-Fi explicitly disabled before launch; Android connectivity reported active default network none/current networks empty. Real local-WebView public replay again recognized 113:1-5 with five matches/49 progress, same stop/event result identity, reset/empty silence/disposal/local reuse and SDK_COMPLETE. Original airplane-off/Wi-Fi-on settings were restored afterward.
+- New helper short capture check passed offline: normal five-second capture processed 78,080 samples and canonical complete stop; helper disposed and replacement attached; active three-second capture was disposed by session disposal. No recognition claim from this short ambient-input lifecycle pass.
+- Backgrounding during active capture stopped the helper and emitted a complete interruption with 46,080 processed samples; returning to foreground did not restart capture. Explicit reset/start/stop recovered successfully (44,800 samples). HardwareFormatVerified remains false; route/audio-focus/native-format checks still need separate evidence.
+
+### New microphone-helper live and denial checkpoint (2026-10-12)
+
+- Android permission was deliberately revoked and user-fixed denial set for this probe. Start returned microphonePermissionDenied and helper state failed without entering capture. Clearing that temporary flag/restoring the original grant allowed the same helper/session to start and stop successfully (46,080 processed samples). Original USER_SET grant retained; no denial flag remains.
+- Owner performed Reset/Start, recited Al-Falaq and tapped Stop using the new helper. The run processed 272,640 samples (17.04 s), emitted five match and 31 word-progress observations, and completed with five sequence entries and canonical repeated-stop identity. Diagnostic logs retain counts only, not exact recognized references; this does not independently establish the five live result references were 113:1-5.
+- No capture error/overrun was logged on that live run. Session disposal afterward also disposed the attached helper. The installed 77.0 MB private APK uses sdk_probe.dart with PROBE_CONTROLS/PROBE_MIC; opening it replays diagnostics then presents the helper screen, without automatic capture. Analyzer clean and release build succeeded; no root SDK production-code changes were needed for observed cases.
+
 ## Next bounded Phase 3 work
 
-1. Validate fresh downloader, progress/cancellation/retry, interrupted-stage cleanup and preservation/deletion leases, rather than infer these from bundled-install success.
-2. Exercise new microphone helper on Android, including requested/client format evidence, stop/disposal, permission denial and interruption/route recovery. Prior Phase 1 live mic evidence is not proof of the new helper's lifecycle.
-3. Check control/overrun/deadline and asset fault paths with owner-authorized verification. No authored test suite currently authorized or added.
-4. Repeat the public facade with network disabled, then iPhone when available. Agree resource budgets before permanent runtime selection. No Phase 4/5 transition yet.
+1. Asset lifecycle baseline is validated above. Mid-response retry and additional disk/network faults may be extended if needed; do not infer cross-process locking or byte-range resume.
+2. New helper live/stop/disposal/denial/background checks passed. Next: capture-side overload/start-stop races, native delivered-format/route/audio-focus/disconnection recovery, and longer sustained resource checks. Keep prior Phase 1 and new-helper evidence distinct.
+3. Facade control/overrun/deadline diagnostics passed with the private adapter. Native bridge loss, capture overload/route races and failed cleanup remain separate platform checks. No authored unit-test suite added.
+4. Network-disabled public facade passed on Android. iPhone remains unavailable; agree resource budgets before permanent runtime selection. No Phase 4/5 transition yet.

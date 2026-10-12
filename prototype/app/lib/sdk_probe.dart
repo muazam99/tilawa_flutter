@@ -11,6 +11,10 @@ import 'package:path_provider/path_provider.dart';
 import 'package:tilawa_flutter/tilawa_flutter.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import 'asset_probe.dart';
+import 'control_probe.dart';
+import 'microphone_probe.dart';
+
 void main() => runApp(const MaterialApp(home: _SdkProbe()));
 
 class _SdkProbe extends StatefulWidget {
@@ -37,18 +41,33 @@ class _SdkProbeState extends State<_SdkProbe> {
     StreamSubscription<TilawaEvent>? events;
     try {
       final support = await getApplicationSupportDirectory();
-      final store = TilawaAssetStore(
+      var store = TilawaAssetStore(
         Directory('${support.path}/tilawa-sdk-assets'),
       );
       final manifest = TilawaAssetManifest.zipformerV1();
-      final install = store.fromBundled(manifest, {
-        for (final file in manifest.files)
-          file.name: 'assets/runtime/${file.name}',
-      });
-      final assets = await install.completed;
+      TilawaPreparedAssets assets;
+      const assetChecks = bool.fromEnvironment('PROBE_ASSETS');
+      if (assetChecks) {
+        final checked = await runAssetProbe(support, _log);
+        store = checked.store;
+        assets = checked.assets;
+      } else {
+        final install = store.fromBundled(manifest, {
+          for (final file in manifest.files)
+            file.name: 'assets/runtime/${file.name}',
+        });
+        assets = await install.completed;
+      }
       _log('ASSETS_VERIFIED');
+      if (const bool.fromEnvironment('PROBE_CONTROLS')) {
+        await runControlProbe(assets, _log);
+      }
       session = await TilawaSession.open(assets: assets);
       _log('SDK_READY adapter=${session.info.adapterId}');
+      if (assetChecks) {
+        await expectAssetError('assetsInUse', () => store.delete(manifest));
+        _log('ASSET_SESSION_LEASE deleteBlocked=true');
+      }
       var matches = 0, progress = 0;
       TilawaSessionResult? eventResult;
       events = session.events.listen((event) {
@@ -85,7 +104,25 @@ class _SdkProbeState extends State<_SdkProbe> {
       _log('SDK_DISPOSED');
       final reused = await store.available(manifest);
       _log('OFFLINE_REUSE ${reused != null}');
+      if (assetChecks) {
+        await store.delete(manifest);
+        requireAssetProbe(
+          await store.available(manifest) == null,
+          'Disposed runtime retained its asset lease',
+        );
+        _log('ASSET_SESSION_RELEASE deleteAllowed=true');
+        _log('ASSET_CHECKS_COMPLETE');
+      }
       _log('SDK_COMPLETE');
+      if (const bool.fromEnvironment('PROBE_MIC') && mounted) {
+        unawaited(
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => MicrophoneProbe(assets: assets),
+            ),
+          ),
+        );
+      }
     } catch (error, stack) {
       _log('ERROR $error');
       debugPrint('$stack');

@@ -49,4 +49,12 @@ The app now has a path dependency on the root development SDK. To build the priv
 
 Latest installed APK is this entry point, not the older interactive Phase 1 mic screen. Restore that screen with the default lib/main.dart entry point if microphone checks are requested. See ../../PHASE3.md for the public facade's actual results and remaining gates. Large assets/audio in this private app remain excluded from root SDK package assets.
 
+Opt-in Phase 3 diagnostics use the same `lib/sdk_probe.dart` target:
+
+- `--dart-define=PROBE_ASSETS=true`: real HTTPS downloads and private fault hooks. Requires the baseline bundled install from a default run. First launch logs ASSET_CRASH_READY after real bytes arrive; force-stop then relaunch to check interrupted staging cleanup. It subsequently checks cancel/retry/integrity/concurrency/version protection and downloaded-assets recognition. This uses dedicated disposable probe stores, preserving the baseline store. Retry fixtures contain license text, never recognition input.
+- `--dart-define=PROBE_CONTROLS=true`: bounded facade diagnostics through the public adapter factory, including overload, copied admission, terminal identity, timeout quarantine/late output, competing stop/reset, and disposal with a stalled feed. These are synthetic adapter checks, not native preemption or WebView-crash evidence.
+- `--dart-define=PROBE_MIC=true`: after replay, opens an interactive screen using `TilawaMicrophone`. Capture starts only on Start or Lifecycle check. Stop ends capture then finalizes recognition; Reset enables a new run. Lifecycle check performs five seconds of capture/normal stop/helper disposal, then a three-second capture/session disposal. Recreate opens a fresh session/helper. Logs include counts/state/sample positions, not transcripts or recited references.
+
+Controls and microphone flags can be combined. Do not combine microphone with asset checks: the asset run deliberately deletes its downloaded installation after lease validation. Offline validation requires disabling external connectivity explicitly; OFFLINE_REUSE alone is a filesystem check. Device results and remaining gates are in PHASE3.md.
+
 See [FEASIBILITY.md](FEASIBILITY.md), including continuation evidence and remaining gates. Device logs have the prefix `TILAWA_PROBE`. Five-minute automatic stop is a configurable measurement-build convenience, not an SDK duration limit. Android offline/live/recreation results do not establish iPhone, longer sustained capture, interruptions or leak-free cleanup.
