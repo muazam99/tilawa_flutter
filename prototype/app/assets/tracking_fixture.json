@@ -1,0 +1,543 @@
+{
+  "descriptor": {
+    "version": "private-corpus-display-v1",
+    "edition": "Pinned corpus plain-word display; verified Madani page references",
+    "corpusSha256": "24360c05ec88fcacf3419c1fe6cd81d69e653326a0bf0e4fb507e7b98fc88127",
+    "segmentationId": "zipformer-wordInAyah-v1:24360c05ec88fcacf3419c1fe6cd81d69e653326a0bf0e4fb507e7b98fc88127"
+  },
+  "provenance": {
+    "wordLabels": "Pinned corpus.json w[2], NPL-1.2",
+    "layoutSource": "Developer pages.json (derived from quran.com word line_number) and juz.json",
+    "pagesSha256": "5643325c6f3999bf710301ea1efef74c634bd229348f1ab4c715824242da85ab",
+    "juzSha256": "04a3273068c6846b770b04c1f140f5acdee40aadadfeffd2b00e3eea1708ff5e",
+    "scope": "Private 112/113 consumer fixture only; no default SDK edition or page-completion policy"
+  },
+  "ayahs": [
+    {
+      "surah": 112,
+      "ayah": 1,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "112:1:1",
+          "text": "قُلْ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "112:1:2",
+          "text": "هُوَ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 2,
+          "id": "112:1:3",
+          "text": "ٱللَّهُ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 3,
+          "id": "112:1:4",
+          "text": "أَحَدٌ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "surah": 112,
+      "ayah": 2,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "112:2:1",
+          "text": "ٱللَّهُ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "112:2:2",
+          "text": "ٱلصَّمَدُ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "surah": 112,
+      "ayah": 3,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "112:3:1",
+          "text": "لَمْ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "112:3:2",
+          "text": "يَلِدْ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 2,
+          "id": "112:3:3",
+          "text": "وَلَمْ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 3,
+          "id": "112:3:4",
+          "text": "يُولَدْ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "surah": 112,
+      "ayah": 4,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "112:4:1",
+          "text": "وَلَمْ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "112:4:2",
+          "text": "يَكُن",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 2,
+          "id": "112:4:3",
+          "text": "لَّهُۥ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 3,
+          "id": "112:4:4",
+          "text": "كُفُوًا",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 4,
+          "id": "112:4:5",
+          "text": "أَحَدٌۢ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "surah": 113,
+      "ayah": 1,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "113:1:1",
+          "text": "قُلْ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "113:1:2",
+          "text": "أَعُوذُ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 2,
+          "id": "113:1:3",
+          "text": "بِرَبِّ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 3,
+          "id": "113:1:4",
+          "text": "ٱلْفَلَقِ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "surah": 113,
+      "ayah": 2,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "113:2:1",
+          "text": "مِن",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "113:2:2",
+          "text": "شَرِّ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 2,
+          "id": "113:2:3",
+          "text": "مَا",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 3,
+          "id": "113:2:4",
+          "text": "خَلَقَ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "surah": 113,
+      "ayah": 3,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "113:3:1",
+          "text": "وَمِن",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "113:3:2",
+          "text": "شَرِّ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 2,
+          "id": "113:3:3",
+          "text": "غَاسِقٍ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 3,
+          "id": "113:3:4",
+          "text": "إِذَا",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 4,
+          "id": "113:3:5",
+          "text": "وَقَبَ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "surah": 113,
+      "ayah": 4,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "113:4:1",
+          "text": "وَمِن",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "113:4:2",
+          "text": "شَرِّ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 2,
+          "id": "113:4:3",
+          "text": "ٱلنَّفَّـٰثَـٰتِ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 3,
+          "id": "113:4:4",
+          "text": "فِى",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 4,
+          "id": "113:4:5",
+          "text": "ٱلْعُقَدِ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    },
+    {
+      "surah": 113,
+      "ayah": 5,
+      "pages": [
+        604
+      ],
+      "juz": [
+        30
+      ],
+      "words": [
+        {
+          "index": 0,
+          "id": "113:5:1",
+          "text": "وَمِن",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 1,
+          "id": "113:5:2",
+          "text": "شَرِّ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 2,
+          "id": "113:5:3",
+          "text": "حَاسِدٍ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 3,
+          "id": "113:5:4",
+          "text": "إِذَا",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        },
+        {
+          "index": 4,
+          "id": "113:5:5",
+          "text": "حَسَدَ",
+          "pages": [
+            604
+          ],
+          "juz": [
+            30
+          ]
+        }
+      ]
+    }
+  ]
+}

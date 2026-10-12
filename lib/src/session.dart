@@ -14,6 +14,8 @@ final class TilawaSession {
   final TilawaPreparedAssets _assets;
   final TilawaRecognitionConfig _config;
   final TilawaMetadataResolver? _resolver;
+  TilawaMetadataDescriptor? _metadataDescriptor;
+  TilawaException? _metadataBindingError;
   late final TilawaEngineAdapter _adapter;
   late final TilawaSessionInfo info;
   final _events = StreamController<TilawaEvent>.broadcast();
@@ -48,6 +50,18 @@ final class TilawaSession {
     final session = TilawaSession._(assets, config, metadataResolver);
     TilawaEngineAdapter? acquired;
     try {
+      // Bind identity once. A mutable caller-owned resolver must not silently
+      // switch editions/versions while an existing session is using it.
+      if (metadataResolver != null) {
+        try {
+          session._metadataDescriptor = metadataResolver.descriptor;
+        } catch (error) {
+          session._metadataBindingError = TilawaException(
+            'metadataResolutionFailed',
+            'Metadata descriptor: $error',
+          );
+        }
+      }
       await assets.verify();
       session._adapter = acquired =
           await (adapterFactory ?? const TilawaWebViewAdapterFactory()).create(
@@ -519,13 +533,19 @@ final class TilawaSession {
     if (resolver == null) return null;
     final run = _runId;
     try {
+      if (_metadataBindingError != null) throw _metadataBindingError!;
+      final bound = _metadataDescriptor!;
       bool compatible(TilawaMetadataDescriptor descriptor) =>
           descriptor.corpusSha256 == info.corpusSha256 &&
-          descriptor.segmentationId == info.segmentationId;
+          descriptor.segmentationId == info.segmentationId &&
+          descriptor.version == bound.version &&
+          descriptor.edition == bound.edition &&
+          descriptor.version.trim().isNotEmpty &&
+          descriptor.edition.trim().isNotEmpty;
       if (!compatible(resolver.descriptor)) {
         throw const TilawaException(
           'metadataMismatch',
-          'Metadata corpus/segmentation differs from recognition.',
+          'Metadata identity differs from the bound corpus, segmentation or edition/version.',
         );
       }
       final count = await _enqueue(() {
@@ -537,15 +557,23 @@ final class TilawaSession {
       if (result == null) return null;
       final indices = result.words.map((word) => word.indexInAyah).toSet();
       if (result.ayah != ayah ||
+          count <= 0 ||
           !compatible(result.descriptor) ||
-          result.descriptor.version != resolver.descriptor.version ||
-          result.descriptor.edition != resolver.descriptor.edition ||
           result.recognitionWordCount != count ||
           (result.ayahOnly
               ? result.words.isNotEmpty
               : indices.length != count ||
                     result.words.length != count ||
                     indices.any((index) => index < 0 || index >= count)) ||
+          result.words.any(
+            (word) =>
+                word.displayWordIds.any((id) => id.trim().isEmpty) ||
+                word.displayWordIds.toSet().length !=
+                    word.displayWordIds.length ||
+                (word.displayWordIds.isEmpty &&
+                    word.pages.isEmpty &&
+                    word.juz.isEmpty),
+          ) ||
           [
             ...result.pages,
             ...result.juz,

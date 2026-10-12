@@ -1,6 +1,6 @@
 # tilawa_flutter (development SDK)
 
-Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. Phase 3 implementation is in progress. This is not a published package; author-code licensing and final runtime selection remain under review.
+Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. Phase 4 implementation and its Android checkpoint are complete; platform/resource and deferred Phase 3 fault gates remain open. This is not a published package; author-code licensing and final runtime selection remain under review.
 
 The Android Phase 1 probe has real offline/live recognition evidence. That evidence does not automatically verify this newly implemented facade or iOS. See [PLAN.md](PLAN.md), [API_CONTRACT.md](API_CONTRACT.md) and [PHASE3.md](PHASE3.md).
 
@@ -99,9 +99,15 @@ Foreground-only. Audio-focus pause/disconnection or app backgrounding stops capt
 
 ## Metadata and analytics
 
-An optional TilawaMetadataResolver binds a display edition to the exact corpus hash and `tilawaSegmentationId`. resolveMetadata validates corpus identity, ayah word counts and explicit recognition-to-display mappings; recognition works without it. A mapping may be ayah-only or cover every recognition word with display IDs/page/juz references. It does not implement highlights, page completion or analytics UI.
+An optional TilawaMetadataResolver binds a display edition to the exact corpus hash and `tilawaSegmentationId`. The session captures its edition/version identity at open; switching either requires a new session/resolver. resolveMetadata validates that identity, ayah word counts and explicit recognition-to-display mappings; recognition works without it. A mapping may be ayah-only or cover every recognition word with display IDs/page/juz references. Word rows must carry at least one reference; supplied display IDs must be nonblank and unique within a row. One-to-many and many-to-one mappings across rows are allowed. Page/juz references must be positive. An ayah-only mapping has no word rows.
+
+Metadata mismatches and resolver failures produce nonfatal warnings and rejected lookup Futures, not invalid highlights or recognition failure. Validation checks declared identity and structure; the developer still verifies their actual text/edition segmentation and the accuracy of layout references. The SDK cannot certify arbitrary display labels from a claimed hash alone.
+
+Consumers replace word-progress and transcript snapshots rather than unioning/appending them. Capture the event run ID, selected ayah and a request generation before asynchronous metadata lookup, then check them again before updating the display. Reset clears presentation state, and a lookup started in an older run must not overwrite the new one. The private Phase 4 consumer in `prototype/app/lib/tracking_probe.dart` demonstrates these guards, mapped Arabic words, references and optional live input. Its small 112/113 fixture is developer-supplied, not a default SDK Quran edition. There is no SDK highlight widget, page completion or analytics UI.
 
 Scores are preserved engine values, not probabilities; accumulated scores may exceed 1. Repeated progress does not mean new words read, verse suppression prevents a complete repeated-reading history, and fallback verse matches do not imply actual word coverage. See API_CONTRACT section 6 for pinned source details.
+
+Lost/relocated observations are opt-in diagnostics at this pinned baseline, not a guaranteed typed transition stream. A lost diagnostic can coexist with sampled tracking state `tracking`; retain that distinction instead of inventing a complete loss/recovery history. The Android repetition probe produced additional progress with no new verse matches, then located a different surah in the same run. See PLAN section 13 for measured outcomes and limitations.
 
 ## Attribution and development
 

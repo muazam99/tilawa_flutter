@@ -22,3 +22,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/runtime/
+    - assets/tracking_fixture.json

@@ -186,7 +186,9 @@ Ayah metadata contains the requested ayah, optional display text and immutable m
 
 No resolver or resolver returns null: return null without breaking recognition. Descriptor/index/count mismatch: throw metadataMismatch and emit a nonfatal warning; return no invalid highlight mapping. Resolver exception: metadataResolutionFailed, nonfatal. Returned metadata identifies its ayah/descriptor but does not carry session state; a consumer captures run ID before awaiting it and checks that ID before updating live UI. A result completing after reset is not automatically attached to the new run. The SDK does not enrich/reorder recognition events asynchronously behind the consumer's back.
 
-SDK retains a resolver reference but does not dispose a caller-owned resolver. Metadata changes require a new session/resolver binding; no ambiguous mid-run version switch.
+SDK retains a resolver reference but does not dispose a caller-owned resolver. Its descriptor identity is captured at open and compared on lookup; metadata changes require a new session/resolver binding. Descriptor version/edition must be nonblank. Each word row carries at least one display ID/page/juz reference; supplied IDs are nonblank and unique within that row, while the same ID can occur across rows for many-to-one mapping. Empty word mappings and invalid indices/counts/references are metadataMismatch. A descriptor getter failure is retained as a nonfatal metadataResolutionFailed lookup error; it does not prevent recognition from opening.
+
+These checks validate declared identity and structure, not the correctness of arbitrary developer labels or page data. The developer verifies their real display segmentation against the pinned corpus; no automatic +1 indexing or assumed Quran edition is substituted by the SDK.
 
 ## 8. Asset and adapter boundaries
 
