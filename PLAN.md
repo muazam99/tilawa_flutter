@@ -1,6 +1,6 @@
 # Plan: Tilawa Flutter SDK
 
-**Status:** Phase 4 implementation and Android checkpoint complete: event/metadata validation, real repetition/change-of-passage replay and owner-confirmed live word following passed. Phase 5 pending. Deferred Phase 3 capture/bridge/routes, iOS and resource checks remain release gates.
+**Status:** Phase 4 checkpoint retained. Phase5A baseline/inventory and5B standalone example/Android checkpoint complete on2026-10-12. This owner-requested local checkpoint on master follows45d4798. Phase5C–G, physical iPhone and deferred capture/bridge/routes/resource gates remain open; no push, dry run or publication.
 **Created:** 2026-10-12
 **Last updated:** 2026-10-12
 **Package working name:** `tilawa_flutter`
@@ -347,7 +347,7 @@ Use the established session/event model to add supported correction and retry wo
 
 ## 13. Current phase and resume notes
 
-**Current phase:** Phase 4 implementation/Android checkpoint complete. Owner requested saving the detailed Phase 5 plan and committing current progress; this checkpoint includes Phase 4 source, documentation, fixtures and the plan in section 16. Phase3 validation checkpoint is local commit88e77fe. Read this section and prototype README for current evidence, PHASE3/FEASIBILITY for deferred platform/resource gates. Phase5 implementation has not started.
+**Current phase:** Phase5A baseline/inventory and5B standalone example/Android checkpoint complete. Owner requested5A+5B and authorized scaffold/dependencies/analyze/build and bounded physical-Android checks, then requested a local commit. Starting baseline45d4798 on clean master; this checkpoint saves the new example/source/docs. Read section16/NOTICE and example/README; PHASE3/FEASIBILITY retain deferred gates. Next slice5C requires owner progression; no push/dry run/publication.
 
 As of 2026-10-12:
 
@@ -365,12 +365,12 @@ As of 2026-10-12:
 
 ### Next-session handoff
 
-1. Inspect Git status and recent commits on master. Owner requested a local Phase4/current-progress checkpoint including the detailed Phase5 plan in section16. Phase3 checkpoint is88e77fe. Resume from the saved plan, preserving remaining Phase3 gates; do not restart product/API discussion. Phase5 implementation and publication have not started.
+1. Inspect Git status and recent commits on master. This owner-requested5A+5B checkpoint follows45d4798 and saves the example/source/docs. Resume section16 at5C when requested, retaining remaining Phase3/platform/resource gates. No push, dry run or publication was performed.
 2. Latest installed77.1MB arm64 APK targets lib/tracking_probe.dart with PROBE_TRACK_CONTRACT/PROBE_TRACK_AUTORUN=true, package dev.qiyam.tilawa_bridge_probe. Launch performs isolated diagnostics and real repeated/changed-passage replay, then leaves interactive word following. Capture starts only on Start mic. sdk_probe.dart/main.dart retain Phase3/Phase1 surfaces. SDK runtime assets remain unchanged.
 3. Phase4 diagnostic metadata mismatches17/resolverfailure were nonfatal; duplicate/revised progress and full transcripts replaced snapshots, lost remained diagnostic while sampled state tracking, scores above1 preserved, malformed operation batches suppressed and async mappings fenced across reset. Real runtime checked nine fixture ayahs/38 words. First113 replay5matches/48progress; second0newmatches/46newprogress; final113:1-5,112:1 yielded6matches/97progress/952012 samples and canonical result identity. Located3/completed2, no actual acoustic lost/relocated event in this run.
 4. Owner confirmed Arabic words/ayah followed live recitation. Successful live stop5sequenceentries/485120samples, then reset cleared display and session/helper disposed. Earlier exploratory stops0/2 entries; no accuracy generalization. Labels come from pinned corpus; page604/juz30 fixture provenance/hash captured. Developer still verifies arbitrary real display data; SDK validates claimed identity/structure. No authored unit-test suite; root/probe analyze clean/release build passed.
 5. Remaining gates: Phase3 capture overload/start-stop/nativeformat/routes/audiofocus/disconnection/bridge-loss/failedcleanup, sustained resources/budgets/architecture decision and Mac/iPhone. Phase5 builds the public developer example, docs/licenses/package metadata and authorized publication dry run. Publication/Qiyam integration remain separate requests.
-6. Owner accepted the limited112/113 display fixture after clarification: recognition corpus covers114surahs, but demo display mapping is intentionally limited. A full-Quran display dataset is not requested. For Phase5, start with5A baseline/inventory and5B standaloneexample after owner says proceed; remaining slices/acceptance criteria are in section16. Recheck connected devices and Mac/iPhone availability before execution.
+6. Owner accepted the limited112/113 fixture.5A inventory in NOTICE and5B conventional example are implemented. Analyzer clean/19.0MB release APK installed as dev.tilawa.tilawa_flutter_example on Infinix X678B/Android14; empty-store download/progress/cancel/userretry/license/runtime passed. Reopened with airplane on/Wi-Fi/data off and no current network; owner confirmed live highlighting. Stop386560samples/4matches/48progress/final113:2–5 complete, not full-surah/accuracy proof. Reset cleared presentation/counts; session/helper disposed, connectivity restored. example/README holds reproducible setup/evidence. Physical iPhone/accessibility variants and broader/resource/fault gates remain open.
 
 Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flutter lockfiles are saved. Downloaded source, model/corpus and generated runtime/build products are ignored by Git. The local release APK is at `prototype/app/build/app/outputs/flutter-apk/app-release.apk` and can be regenerated using the prototype README. Dedicated local repository/checkpoint commits were owner-authorized; no remote, push, publication or Qiyam integration occurred.
 
@@ -380,6 +380,8 @@ Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flut
 - Owner subsequently approved Phase 2 API design and then said proceed after the contract draft, authorizing Phase 3 implementation and its bounded integration checks. Deferred platform/resource gates remain; publication and later-phase execution require separate approval.
 - Owner then requested commit of the Phase3 checkpoint and progression to Phase4. Commit88e77fe saved that checkpoint; Phase4 implementation/Android validation proceeded with the remaining Phase3 gates explicitly deferred.
 - Owner accepted the limited display fixture, requested a detailed Phase5 plan, then requested saving that plan and committing current progress. This authorizes this local checkpoint, not automatic Phase5 execution, new tests, remote push or publication.
+- Owner subsequently requested Phase5A+5B and explicitly authorized Flutter scaffold/dependencies/format/analyze/releasebuild and bounded physical-phone checks. This session implemented and validated those slices only; no new authored test suite, commit, push, dry run or publication.
+- Owner then explicitly requested committing the5A+5B checkpoint locally. This does not authorize a push, later-slice execution, dry run or publication.
 - No Android emulator requested. iOS runtime verification is not available in the current Windows environment.
 - Do not add or modify tests unless the owner explicitly requests them. Verification design remains necessary, but test authoring/execution needs permission.
 - Owner authorized dedicated local repository and progress checkpoint commits during continuation. Push, remote repositories and pub.dev publication still require separate explicit authorization.
@@ -424,7 +426,7 @@ The original research links track upstream `main` unless versioned. Phase 1 uses
 ## 16. Detailed Phase 5 execution plan
 
 **Saved:** 2026-10-12, at owner's request for continuation in another session.
-**Status:** Planned only. No example/release implementation, publication candidate or dry run has been performed.
+**Status:**5A baseline/inventory and5B standalone example/Android checkpoint complete.5C–G pending; intended-platform/resource/fault gates remain open. No publication candidate or dry run performed.
 **Goal:** Turn the development SDK into a reproducible package another Flutter developer can install, understand and use, with verified Android/iOS behavior and accurate documentation.
 **Finish:** A validated release candidate with satisfactory authorized pub.dev dry-run results. Actual publication remains separate.
 
@@ -445,6 +447,8 @@ Draft documentation alongside implementation. Start iPhone work once the require
 
 ### 5A. Establish the release baseline
 
+**Checkpoint (2026-10-12):** Baseline45d4798 on master, working tree clean before5A/5B. Exact artifact/distribution/license inventory is consolidated in NOTICE.md, including the public fixture as an NPL-1.2 derivative. Pins/integrity manifest remain unchanged. Package/version/publish_to and owner license/URLs/publisher/budget/runtime decisions remain open. Deferred gates are5C capture/native/bridge/cleanup/download faults,5D physical iPhone/broader passages/sustained resources/runtime acceptance,16KB-device runtime, and5E/F final terms/archive/consumer/dry run. No new commit or publication action is authorized by this checkpoint.
+
 **Work:**
 1. Review the saved Phase4/current-progress checkpoint and inspect branch/status; preserve any newer owner work. Establish the exact release baseline, creating additional commits only when requested.
 2. Preserve the pinned upstream commit, model hashes, corpus/segmentation identity and runtime artifact integrity manifest.
@@ -455,6 +459,8 @@ Draft documentation alongside implementation. Start iPhone work once the require
 **Done when:** One clear baseline/open-gate inventory exists, provenance/license obligations are recorded, and the next example slice can be built without losing saved Phase4 evidence.
 
 ### 5B. Build the standalone developer example
+
+**Checkpoint (2026-10-12):** Conventional example/ implemented using only public SDK barrels, with example-owned controller/UI, persistent downloaded assets, cancellation/retry/local-only reopen, explicit capture/control/recovery, guarded snapshot mappings and NPL-labeled9ayah/38word fixture. Android API24/iOS16 scaffold prepared, root SDK/runtime pins unchanged. Analyzer clean and arm64 release19.0MB built/installed. Fresh online download/progress/cancel/userretry/license dialog/runtime passed; explicitly network-disabled reopen and owner-confirmed live highlights passed. Complete stop386560samples/4verseevents/48progressevents/final113:2–5; reset cleared display/counts and session/helper disposal passed. Original connectivity restored. See example/README evidence table. iOS build/runtime and remaining5C/D release gates remain unverified; no archive/clean-candidate/dryrun claim.
 
 **Deliverable:** Conventional example/ Flutter app consuming only exported SDK interfaces: package:tilawa_flutter/tilawa_flutter.dart and package:tilawa_flutter/microphone.dart. No lib/src imports, Qiyam types/services, private probe dependencies or Node/cache requirement.
 
@@ -582,6 +588,6 @@ Actual publication is a separate requested action. Qiyam integration and correct
 ### Cold-session start
 
 1. Read PLAN sections13/16 and the canonical Brain checkpoint; inspect Git status/log before editing.
-2. Confirm the owner wants to start Phase5 implementation, then take5A+5B as the first executable slice. Do not implement the entire phase or perform publishing actions from a request to save this plan.
+2. This local checkpoint saves5A+5B implementation/Android evidence. Continue5C only when requested; do not expand into5D–G or publishing actions from this limited progression.
 3. Recheck physical device/Mac availability; retain current deferred gates and the accepted limited display-fixture scope.
 4. Save progress at completed slices and before long device work, distinguishing source changes from actual verification and blockers. Update this existing plan/Brain rather than creating duplicate task plans.

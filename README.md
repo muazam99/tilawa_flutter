@@ -1,16 +1,22 @@
 # tilawa_flutter (development SDK)
 
-Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. Phase 4 implementation and its Android checkpoint are complete; platform/resource and deferred Phase 3 fault gates remain open. This is not a published package; author-code licensing and final runtime selection remain under review.
+Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. Phase 4 and Phase 5A/5B Android checkpoints are complete; platform/resource and deferred Phase 3 fault gates remain open. This is not a published package; author-code licensing and final runtime selection remain under review.
 
-The Android Phase 1 probe has real offline/live recognition evidence. That evidence does not automatically verify this newly implemented facade or iOS. See [PLAN.md](PLAN.md), [API_CONTRACT.md](API_CONTRACT.md) and [PHASE3.md](PHASE3.md).
+Android evidence is recorded separately for the private Phase 1 bridge, Phase 3 public facade and Phase 5 standalone example. These checks do not establish iOS support or close deferred fault/resource gates. See [PLAN.md](PLAN.md), [API_CONTRACT.md](API_CONTRACT.md), [PHASE3.md](PHASE3.md) and [example evidence](example/README.md).
 
 ## Requirements
 
 - Flutter 3.35.1 / Dart 3.9 or newer compatible versions.
 - Intended platforms: Android API 24+ and iOS 16+. Physical iPhone verification is pending.
-- Android app: INTERNET permission and a network-security policy allowing cleartext **only for 127.0.0.1/localhost**, for the app-owned loopback server. See `prototype/app/android/app/src/main` for the scoped example.
-- iOS app: iOS 16 deployment target and local-network ATS configuration, as prepared in `prototype/app/ios/Runner/Info.plist`. iOS build/runtime is not verified on this Windows host.
+- Android app: INTERNET permission and a network-security policy allowing cleartext **only for 127.0.0.1/localhost**, for the app-owned loopback server. See `example/android/app/src/main` for the scoped example.
+- iOS app: iOS 16 deployment target and local-network ATS configuration, as prepared in `example/ios/Runner/Info.plist`. iOS build/runtime is not verified on this Windows host.
 - Optional microphone: Android RECORD_AUDIO permission and iOS NSMicrophoneUsageDescription. The helper requests permission only when start is called.
+
+## Standalone developer example
+
+The conventional [example app](example/README.md) uses only the exported SDK APIs. It downloads missing pinned assets into an app-owned persistent store, supports per-file progress/cancel/retry and local-only reopen, and exposes explicit live Start/Stop, Reset and Dispose controls. No Node/cache/private probe inputs are required. Android/iOS platform configurations are checked in; verification status is recorded in its README.
+
+Its nine-ayah112/113 corpus-label fixture is distributed under NPL-1.2 with the full license in SDK runtime assets. Recognition elsewhere retains references/indices with an honest unavailable-display state. Event counts are example-owned observations, not repeat credit or page completion. See [NOTICE.md](NOTICE.md) for the5A distribution/license inventory and open release decisions.
 
 Runtime JS/WASM and third-party notices are package assets under `assets/runtime`. Consumers do not need Node/npm. The large model, phoneme corpus and benchmark audio are not SDK package assets.
 
@@ -103,7 +109,7 @@ An optional TilawaMetadataResolver binds a display edition to the exact corpus h
 
 Metadata mismatches and resolver failures produce nonfatal warnings and rejected lookup Futures, not invalid highlights or recognition failure. Validation checks declared identity and structure; the developer still verifies their actual text/edition segmentation and the accuracy of layout references. The SDK cannot certify arbitrary display labels from a claimed hash alone.
 
-Consumers replace word-progress and transcript snapshots rather than unioning/appending them. Capture the event run ID, selected ayah and a request generation before asynchronous metadata lookup, then check them again before updating the display. Reset clears presentation state, and a lookup started in an older run must not overwrite the new one. The private Phase 4 consumer in `prototype/app/lib/tracking_probe.dart` demonstrates these guards, mapped Arabic words, references and optional live input. Its small 112/113 fixture is developer-supplied, not a default SDK Quran edition. There is no SDK highlight widget, page completion or analytics UI.
+Consumers replace word-progress and transcript snapshots rather than unioning/appending them. Capture the event run ID, selected ayah and a request generation before asynchronous metadata lookup, then check them again before updating the display. Reset clears presentation state, and a lookup started in an older run must not overwrite the new one. The standalone consumer in `example/lib/demo_controller.dart` demonstrates these guards, mapped Arabic words, references and optional live input. Its small 112/113 fixture is developer-supplied, not a default SDK Quran edition. There is no SDK highlight widget, page completion or analytics UI.
 
 Scores are preserved engine values, not probabilities; accumulated scores may exceed 1. Repeated progress does not mean new words read, verse suppression prevents a complete repeated-reading history, and fallback verse matches do not imply actual word coverage. See API_CONTRACT section 6 for pinned source details.
 

@@ -1,0 +1,23 @@
+name: tilawa_flutter_example
+description: Standalone public-API Tilawa recognition and tracking example.
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.0
+  flutter: '>=3.35.1'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  path_provider: 2.1.5
+  tilawa_flutter:
+    path: ../
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/demo_metadata.json

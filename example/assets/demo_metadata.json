@@ -1,0 +1,26 @@
+{
+  "descriptor": {
+    "version": "example-corpus-display-v1",
+    "edition": "Pinned corpus plain words; limited Madani page annotations",
+    "corpusSha256": "24360c05ec88fcacf3419c1fe6cd81d69e653326a0bf0e4fb507e7b98fc88127",
+    "segmentationId": "zipformer-wordInAyah-v1:24360c05ec88fcacf3419c1fe6cd81d69e653326a0bf0e4fb507e7b98fc88127"
+  },
+  "provenance": {
+    "license": "NPL-1.2, no additional terms. Full text accompanies this fixture in package assets/runtime/NPL-1.2.txt.",
+    "wordLabels": "Unmodified corpus.json w[2] labels at the pinned SHA-256, Tilawa release v0.3.0/zipformer_quran.json.",
+    "upstreamCommit": "2f2617460dc4a6b967e0cc49fa04804bbf22ec69",
+    "layout": "Example-owned page604/juz30 annotations for surahs112/113, checked against the Phase4 developer fixture. No external layout dataset copied.",
+    "scope": "Nine ayahs/38 recognition words only; not a default SDK edition, full Quran display or completion policy. Word index is the position in each words array, starting at0."
+  },
+  "ayahs": [
+    {"surah":112,"ayah":1,"page":604,"juz":30,"words":["قُلْ","هُوَ","ٱللَّهُ","أَحَدٌ"]},
+    {"surah":112,"ayah":2,"page":604,"juz":30,"words":["ٱللَّهُ","ٱلصَّمَدُ"]},
+    {"surah":112,"ayah":3,"page":604,"juz":30,"words":["لَمْ","يَلِدْ","وَلَمْ","يُولَدْ"]},
+    {"surah":112,"ayah":4,"page":604,"juz":30,"words":["وَلَمْ","يَكُن","لَّهُۥ","كُفُوًا","أَحَدٌۢ"]},
+    {"surah":113,"ayah":1,"page":604,"juz":30,"words":["قُلْ","أَعُوذُ","بِرَبِّ","ٱلْفَلَقِ"]},
+    {"surah":113,"ayah":2,"page":604,"juz":30,"words":["مِن","شَرِّ","مَا","خَلَقَ"]},
+    {"surah":113,"ayah":3,"page":604,"juz":30,"words":["وَمِن","شَرِّ","غَاسِقٍ","إِذَا","وَقَبَ"]},
+    {"surah":113,"ayah":4,"page":604,"juz":30,"words":["وَمِن","شَرِّ","ٱلنَّفَّـٰثَـٰتِ","فِى","ٱلْعُقَدِ"]},
+    {"surah":113,"ayah":5,"page":604,"juz":30,"words":["وَمِن","شَرِّ","حَاسِدٍ","إِذَا","حَسَدَ"]}
+  ]
+}
