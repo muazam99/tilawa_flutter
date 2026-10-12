@@ -153,4 +153,4 @@ Four sequential ADB memory pairs during late capture and after stop: app PSS 342
 - Permission denial/recovery, background/lock/audio-focus interruption, route changes, restart after these conditions and true renderer teardown remain unverified.
 - Agree startup/responsiveness/memory budgets with owner using measured results. Adjacent recreation PSS sampling showed a large transient renderer footprint; no architecture approval or leak-free claim.
 - Static arm64 ZIP/ELF alignment checked; 16 KB-page runtime and other architectures unverified.
-- Mac/Xcode and physical iPhone unavailable. Phase 1 remains partial; no Phase 2 transition authorized.
+- Mac/Xcode and physical iPhone unavailable. Both-platform Phase 1 evidence remains partial. Owner subsequently accepted the Android checkpoint and approved Phase 2 API design; deferred checks remain release gates and architecture stays provisional. See ../API_CONTRACT.md for the review draft.

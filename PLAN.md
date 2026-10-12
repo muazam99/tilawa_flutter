@@ -1,12 +1,12 @@
 # Plan: Tilawa Flutter SDK
 
-**Status:** Phase 0 complete. Phase 1 partial: Android offline replay, ten runtime recreation cycles and 125-second live microphone evidence recorded; iOS and remaining acceptance checks outstanding.
+**Status:** Phase 2 in progress: public API contract draft saved for owner review. Android Phase 1 checkpoint accepted for API design; iOS and deferred Android checks remain release gates.
 **Created:** 2026-10-12
 **Last updated:** 2026-10-12
 **Package working name:** `tilawa_flutter`
 **Components:** Independent public Flutter SDK, standalone example app, future Qiyam consumer.
 **Initial platforms:** Android and iOS 16+.
-**Current phase:** Phase 1, bridge feasibility prototype.
+**Current phase:** Phase 2, public Dart API design.
 
 ## 1. Goal
 
@@ -292,7 +292,7 @@ Deliverable: this plan, the project folder and durable cross-session memory.
 
 Acceptance: agreed scope/platform/licensing intent and provisional architecture are distinguished from unverified feasibility; next session has a clear starting point. No SDK scaffold or runtime verification is implied.
 
-### Phase 1: Prove the Android/iOS bridge (in progress)
+### Phase 1: Prove the Android/iOS bridge (Android checkpoint accepted; platform gates deferred)
 
 1. Read this plan and inspect local status/instructions.
 2. Pin and review the exact upstream baseline and artifact licenses.
@@ -305,13 +305,17 @@ Acceptance: agreed scope/platform/licensing intent and provisional architecture 
 
 Acceptance: meaningful end-to-end evidence on both supported platforms, including recognition events, not model loading alone. If iOS/device verification is unavailable, record partial status rather than call feasibility complete. Quantitative targets should be agreed using measured results.
 
-### Phase 2: Finalize the public Dart API (pending)
+Owner-approved progression on 2026-10-12: current Android evidence is sufficient to begin Phase 2 API design. Both-platform feasibility is not declared complete. iPhone verification and deferred Android/resource checks remain mandatory validation/release gates; architecture stays provisional.
+
+### Phase 2: Finalize the public Dart API (in progress, draft awaiting review)
 
 Define immutable events, session methods/state, audio contract, adapter interfaces, configuration, error categories, supported capabilities, metadata resolver and lifecycle/ownership semantics.
 
 Explicitly examine upstream duplicate suppression, progress semantics, lost tracking, transcript representation, flush/reset behaviour and whether available observations support repeated-reading analytics.
 
 Acceptance: reviewed public contract with examples for raw audio, event subscription and optional metadata. Ordinary consumers do not depend on Qiyam or runtime internals. Unsupported/uncertain capabilities are documented.
+
+Deliverable: `API_CONTRACT.md`, source-reviewed against the pinned ZipformerSession and emission code. It specifies audio copying/backpressure, session/control lifecycle, immutable typed events, canonical completion, capabilities/config/errors, adapter ownership, separate microphone and metadata layers, source limitations and proposed consumer examples. Owner review is pending; it is not an implemented public package.
 
 ### Phase 3: Implement audio and asset handling (pending)
 
@@ -339,7 +343,7 @@ Use the established session/event model to add supported correction and retry wo
 
 ## 13. Current phase and resume notes
 
-**Current phase:** Phase 1 partial. Continuation checkpoint saved after owner chose to retain the 125-second microphone pass and defer the full five-minute measurement. See `prototype/FEASIBILITY.md` for the bounded comparison and recorded evidence.
+**Current phase:** Phase 2 API design, approved by owner after accepting the Android feasibility checkpoint. `API_CONTRACT.md` is the first review draft. See `prototype/FEASIBILITY.md` for measured evidence and deferred release gates.
 
 As of 2026-10-12:
 
@@ -351,22 +355,23 @@ As of 2026-10-12:
 - Read the source links below when needed. Do not restart the product discussion or infer full functionality from the homepage.
 - Owner authorized setup, dependency installation, downloads and validation using the connected real phone (no Android emulator). Debug and arm64 release APKs built and ran on Infinix X678B/Android 14. The release probe matched 112:1 and 113:1-5 with word progress; silence/reset/stop/dispose/reinitialize smoke checks completed. See `prototype/FEASIBILITY.md` for measurements and limitations.
 - Foreground release multi-ayah replay processed 24.292 s input in 12.805 s; paced replay finished in 25.164 s including flush. WebView cannot enable threaded WASM on the inspected device. Separate app/renderer memory snapshots were approximately 324/302 MiB, so footprint needs further review.
-- Continuation established Android delivered/client and device-side mono 16 kHz PCM16 format, offline fresh/warm initialization/replay and a 125-second live pass. Remaining: longer sustained capture, permission/interruption/route checks, agreed resource/performance targets and physical-iPhone verification on Mac/Xcode. No Phase 2 API finalization was started.
+- Continuation established Android delivered/client and device-side mono 16 kHz PCM16 format, offline fresh/warm initialization/replay and a 125-second live pass. Longer sustained capture, permission/interruption/route checks, resource targets and physical-iPhone verification remain deferred gates. Owner approved Phase 2; its public contract draft is saved for review.
 - Owner confirmed the earlier successful personal test used live microphone recitation. Detailed sustained/format/interruption acceptance remains separate from that feedback.
 - Continuation: owner approved measuring before setting performance targets and ten runtime recreation cycles. Offline five-minute measurement was prepared, but owner manually stopped after 125 seconds and chose to save that evidence rather than rerun. Mac/physical iPhone currently unavailable. Results and limits are recorded in `prototype/FEASIBILITY.md`; progress saved in local Git checkpoints.
 
 ### Next-session handoff
 
-1. Read this plan, `prototype/FEASIBILITY.md` and `prototype/README.md`; check the working tree and reconnect the actual phone before any device operations. Resume the existing prototype rather than rebuilding the product discussion or assuming a public SDK already exists.
+1. Read this plan and `API_CONTRACT.md`, then check the SDK repository. Active work is Phase 2 contract review, not additional device checks or a new prototype. A public SDK implementation does not yet exist.
 2. The app `Tilawa Bridge Probe` (`dev.qiyam.tilawa_bridge_probe`) is installed on the owner's Infinix. Last installed arm64 release uses `PROBE_AUTORUN=true`, `PROBE_CYCLES=10`, `PROBE_MIC_SECONDS=300`, default one thread. Fresh launch runs replay plus ten recreation cycles; Start mic is manual and stops automatically after five minutes in this measurement build only. This is not an SDK duration limit. It keeps its own foreground Android window awake; capture was manually stopped by the owner.
-3. Continue Android evidence in FEASIBILITY.md. The 125.2 s offline live pass had zero overruns, queue high-water one, mean feed 220 ms per 480 ms chunk, six verse-match/210 progress observations and all accepted bytes fed. Owner explicitly deferred the full five-minute check. Agree resource targets, then remaining sustained/interruption/route/denial checks. Renderer PSS reached about 486 MiB during recreation and settled around 306 MiB; architecture remains provisional.
-4. Physical-iPhone verification requires Mac/Xcode. Keep Phase 1 partial until both-platform acceptance is established; advance to Phase 2 only after the owner agrees the phase transition.
+3. Review API_CONTRACT sections 2..10 and consumer examples. Proposed defaults and runtime cancellation/segmentation details require review/implementation; no Phase 3 execution yet. Pay particular attention to scores exceeding 1, unsure word matches, stop fallback and duplicate suppression. Accepting the phase transition did not implicitly approve every API signature.
+4. Deferred validation: 125.2 s offline live pass had zero overruns and mean feed220ms per480ms chunk, but longer capture/interruption/route/denial and resource budgets remain. Renderer reached about486MiB PSS during recreation. Mac/iPhone unavailable. Reconnect/authorize device checks when resumed; do not advertise verified iOS or finalize architecture from Android alone.
 
 Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flutter lockfiles are saved. Downloaded source, model/corpus and generated runtime/build products are ignored by Git. The local release APK is at `prototype/app/build/app/outputs/flutter-apk/app-release.apk` and can be regenerated using the prototype README. Dedicated local repository/checkpoint commits were owner-authorized; no remote, push, publication or Qiyam integration occurred.
 
 ### Working permissions and boundaries
 
 - Original handoff authorized planning only. On 2026-10-12 the owner additionally authorized Phase 1 setup and validation on the connected physical Android phone; this does not authorize later-phase execution or publication.
+- Owner subsequently approved transition to Phase 2 public API design with Android checkpoint accepted and remaining platform checks deferred to validation. Phase 3 implementation still requires the reviewed contract and owner phase approval.
 - No Android emulator requested. iOS runtime verification is not available in the current Windows environment.
 - Do not add or modify tests unless the owner explicitly requests them. Verification design remains necessary, but test authoring/execution needs permission.
 - Owner authorized dedicated local repository and progress checkpoint commits during continuation. Push, remote repositories and pub.dev publication still require separate explicit authorization.
@@ -382,6 +387,7 @@ Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flut
 - 2026-10-12: Page-based analytics should be possible through optional compatible Quran metadata; consumer defines what counts as a read page.
 - 2026-10-12: Qiyam's powered features always free. Public SDK documentation must still explain separate model/corpus terms.
 - 2026-10-12: Owner approved feasibility -> API -> audio/assets -> tracking/metadata -> example/release phase order. Bridge architecture stays provisional until verified.
+- 2026-10-12: Owner accepted current Android feasibility evidence for Phase 2 API design. iPhone and deferred Android/resource checks remain release gates; this is not full both-platform feasibility approval.
 
 ## 15. Source references
 
