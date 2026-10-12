@@ -1,6 +1,6 @@
 # Phase 2: Public Dart API contract
 
-Date: 2026-10-12. Status: first review draft, awaiting owner review. This is a design deliverable, not an implemented/importable Flutter package.
+Date: 2026-10-12. Status: owner accepted this design basis and authorized Phase 3 implementation. The initial development SDK now lives under lib/; this document records the design contract, while README/PHASE3 distinguish implemented behaviour from verified outcomes.
 
 Owner approved moving to API design after the Android feasibility checkpoint. Physical-iPhone verification and deferred Android acceptance checks remain release gates. WebView/WASM is provisional. This contract must work with either the current bridge or a later native adapter.
 
@@ -15,7 +15,7 @@ Owner approved moving to API design after the Android feasibility checkpoint. Ph
 - An optional metadata resolver is independent of recognition and never delays the recognition stream.
 - No automatic session duration limit. The prototype's five-minute timer is a measurement setting only.
 
-Names and signatures below are proposed. Phase 3 implements the accepted contracts; no runtime scaffold is being introduced during this review.
+Signatures below are the design basis. See exported Dart source for current constructors/signatures and PHASE3 for implementation limits; no release-readiness claim follows from approval.
 
 ## 2. Ordinary consumer API
 
@@ -296,9 +296,9 @@ The consumer also checks whether the latest live cursor still refers to this aya
 
 ## 12. Review and Phase 3 handoff
 
-This draft resolves the ordinary audio/event/lifecycle/ownership boundary and records source limitations. Owner review is still required before declaring Phase 2 complete.
+Owner approved progression to Phase 3 after this draft was delivered. Phase 2's design checkpoint is accepted; implementation limits/defaults and platform results continue to be recorded explicitly.
 
-Review decisions requested:
+Accepted design direction:
 
 1. Accept core `feed`, terminal `stop`, explicit `reset`, interruption and disposal methods, with one canonical completion result.
 2. Accept snapshots and uncalibrated engine scores, including unsure-matched indices and duplicate suppression; no repeat/coverage claims.

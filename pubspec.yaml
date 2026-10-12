@@ -1,0 +1,20 @@
+name: tilawa_flutter
+description: Offline Tilawa Quran recognition for Flutter. Development SDK.
+version: 0.1.0-dev.1
+publish_to: none
+environment:
+  sdk: ^3.9.0
+  flutter: '>=3.35.1'
+dependencies:
+  flutter:
+    sdk: flutter
+  crypto: 3.0.7
+  path: 1.9.1
+  path_provider: 2.1.5
+  webview_flutter: 4.13.0
+  record: 6.1.2
+dev_dependencies:
+  flutter_lints: ^5.0.0
+flutter:
+  assets:
+    - assets/runtime/

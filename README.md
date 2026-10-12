@@ -1,0 +1,110 @@
+# tilawa_flutter (development SDK)
+
+Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. Phase 3 implementation is in progress. This is not a published package; author-code licensing and final runtime selection remain under review.
+
+The Android Phase 1 probe has real offline/live recognition evidence. That evidence does not automatically verify this newly implemented facade or iOS. See [PLAN.md](PLAN.md), [API_CONTRACT.md](API_CONTRACT.md) and [PHASE3.md](PHASE3.md).
+
+## Requirements
+
+- Flutter 3.35.1 / Dart 3.9 or newer compatible versions.
+- Intended platforms: Android API 24+ and iOS 16+. Physical iPhone verification is pending.
+- Android app: INTERNET permission and a network-security policy allowing cleartext **only for 127.0.0.1/localhost**, for the app-owned loopback server. See `prototype/app/android/app/src/main` for the scoped example.
+- iOS app: iOS 16 deployment target and local-network ATS configuration, as prepared in `prototype/app/ios/Runner/Info.plist`. iOS build/runtime is not verified on this Windows host.
+- Optional microphone: Android RECORD_AUDIO permission and iOS NSMicrophoneUsageDescription. The helper requests permission only when start is called.
+
+Runtime JS/WASM and third-party notices are package assets under `assets/runtime`. Consumers do not need Node/npm. The large model, phoneme corpus and benchmark audio are not SDK package assets.
+
+## Local files and external audio
+
+```dart
+import 'dart:io';
+import 'dart:typed_data';
+import 'package:tilawa_flutter/tilawa_flutter.dart';
+
+final assets = await TilawaAssets.fromLocalFiles(
+  manifest: TilawaAssetManifest.zipformerV1(),
+  model: File(modelPath),
+  corpus: File(corpusPath),
+  io: File(ioManifestPath),
+  license: File(nplLicensePath),
+);
+final session = await TilawaSession.open(assets: assets);
+final subscription = session.events.listen((event) {
+  if (event is TilawaWordProgress) {
+    // 0-based ayah-local indices. Replace the current snapshot.
+    // matchedIndices includes unsure words, not certified correct coverage.
+    onProgress(event);
+  }
+});
+try {
+  // Your bounded producer supplies mono 16 kHz Float32List PCM in [-1, 1].
+  await for (final Float32List chunk in mono16kAudio) {
+    await session.feed(chunk);
+  }
+  final result = await session.stop();
+  // Choose this Future OR TilawaSessionEnded for result aggregation.
+  onResult(result);
+} finally {
+  await session.dispose();
+  await subscription.cancel();
+}
+```
+
+`onProgress`, `onResult`, paths and `mono16kAudio` are application-provided. A default chunk is limited to one second; outstanding in-flight/pending PCM is limited to two seconds. Feed copies input at admission. Await feeds in order; async stream callbacks are not a bounded capture queue. Rejected audioOverrun input is not silently dropped or accepted.
+
+Stop is terminal/idempotent. Reset starts another run using the same healthy runtime; dispose releases it without implicit finalization. Interrupt attempts bounded finalization and explicitly distinguishes incomplete output from an empty recognized sequence. Quarantined/failed runtimes require a new session. There is no five-minute SDK limit.
+
+## Downloaded or bundled assets
+
+```dart
+// Use a dedicated, application-owned persistent directory.
+final store = TilawaAssetStore(Directory(assetStoragePath));
+final manifest = TilawaAssetManifest.zipformerV1();
+var assets = await store.available(manifest);
+if (assets == null) {
+  final installation = store.download(manifest, retries: 2);
+  final progress = installation.progress.listen(onAssetProgress);
+  try {
+    assets = await installation.completed;
+  } finally {
+    await progress.cancel();
+  }
+  // installation.cancel() aborts active network work and incomplete staging.
+}
+final session = await TilawaSession.open(assets: assets);
+```
+
+Progress reports per-file bytes and attempt. Size/SHA-256 verification precedes atomic installation. Content-addressed versions do not overwrite older valid versions; retry starts a fresh incomplete download, not HTTP-range resume. `fromBundled(manifest, assetKeyMap)` installs app-bundled assets through the same verification path. Flutter AssetBundle loads each file into memory, so large bundled models have a temporary memory cost; prefer local/downloaded files when appropriate.
+
+`available` verifies an installed version; corrupt versions produce assetIntegrityMismatch rather than being trusted. `delete(manifest)` refuses installations leased by open sessions or active installers. `cleanupInterruptedInstallations()` removes reserved `.install-*` staging folders left by process termination, without touching completed versions or active installs in the same Dart isolate. Use one coordinating isolate for a store. Cross-process/isolate installation locking is not implemented. Direct external file mutations/deletions cannot be prevented by the SDK.
+
+## Optional microphone
+
+```dart
+import 'package:tilawa_flutter/microphone.dart';
+
+final microphone = await TilawaMicrophone.open(session: session);
+final captureErrors = microphone.errors.listen(onCaptureError);
+await microphone.start();
+// Later, after the user chooses to finish:
+await microphone.stopCapture();
+final result = await session.stop();
+await microphone.dispose();
+await captureErrors.cancel();
+```
+
+Capture uses pinned record plugin PCM16 delivery, converted to normalized float32, with 480 ms chunks and a bounded producer queue. Android source requests this client format through AudioRecord; iOS source converts hardware input through AVAudioConverter. The helper does not claim it measured the physical hardware rate. Its hardwareFormatVerified getter is false. Unsupported/failed native capture produces explicit errors, not arbitrary raw-PCM rate assumptions.
+
+Foreground-only. Audio-focus pause/disconnection or app backgrounding stops capture and requests a session interruption; resume is explicit. No automatic microphone start, background recognition or recording upload. Route-change and denial/recovery behaviour needs device validation. Session disposal also disposes its attached helper. Dispose the helper before replacing it; only one helper can attach to a session.
+
+## Metadata and analytics
+
+An optional TilawaMetadataResolver binds a display edition to the exact corpus hash and `tilawaSegmentationId`. resolveMetadata validates corpus identity, ayah word counts and explicit recognition-to-display mappings; recognition works without it. A mapping may be ayah-only or cover every recognition word with display IDs/page/juz references. It does not implement highlights, page completion or analytics UI.
+
+Scores are preserved engine values, not probabilities; accumulated scores may exceed 1. Repeated progress does not mean new words read, verse suppression prevents a complete repeated-reading history, and fallback verse matches do not imply actual word coverage. See API_CONTRACT section 6 for pinned source details.
+
+## Attribution and development
+
+Tilawa upstream: <https://github.com/yazinsai/tilawa>, pinned commit `2f2617460dc4a6b967e0cc49fa04804bbf22ec69`. ONNX Runtime Web 1.24.2. This is an independent integration, not an official upstream package. See [NOTICE.md](NOTICE.md) and bundled license files.
+
+Maintainer runtime generation: after the prototype's locked dependencies and verified source/assets are prepared, run `node tool/prepare_sdk_runtime.mjs`. It rechecks source Git blob identity and emits bridge/WASM/notices with an integrity manifest. Generated SDK runtime assets are tracked; model/corpus/audio and build products are excluded. The old Phase 1 probe remains separate. The private Phase 3 SDK validation entry point is `prototype/app/lib/sdk_probe.dart`.

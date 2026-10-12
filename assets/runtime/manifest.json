@@ -1,0 +1,51 @@
+{
+  "upstreamCommit": "2f2617460dc4a6b967e0cc49fa04804bbf22ec69",
+  "ortVersion": "1.24.2",
+  "artifacts": [
+    {
+      "name": "bridge.js",
+      "bytes": 727703,
+      "sha256": "0a0ec1519571c0173ea7838b7bd60754aac645686ca49aeef0c87cc0a1080cfe"
+    },
+    {
+      "name": "index.html",
+      "bytes": 345,
+      "sha256": "4813deaaa1c3ab1a1c49fec3d17de959b84669f4490bfad3287313fa51031df9"
+    },
+    {
+      "name": "NPL-1.2.txt",
+      "bytes": 7041,
+      "sha256": "77526bdbfac94132e5114c3a34492c33f915e4b7f310f00b9995500d3610cab5"
+    },
+    {
+      "name": "ONNXRUNTIME_LICENSE",
+      "bytes": 1073,
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    },
+    {
+      "name": "ONNXRUNTIME_ThirdPartyNotices.txt",
+      "bytes": 325054,
+      "sha256": "0e07b95f3a8d6230037707c5c4a2b554d12c4cb67369669ac255635528ffcee2"
+    },
+    {
+      "name": "ort-wasm-simd-threaded.mjs",
+      "bytes": 24274,
+      "sha256": "b538a29137066dbed1f0f449fb081dfd35ccde3d5b155adc34532cefa3b23ee2"
+    },
+    {
+      "name": "ort-wasm-simd-threaded.wasm",
+      "bytes": 12303130,
+      "sha256": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73"
+    },
+    {
+      "name": "TILAWA_LICENSE",
+      "bytes": 1065,
+      "sha256": "aaba1020f09b4d3798b1d6965d7ead0c0ddbaf5252a949fa5cc8120c2b8f27e5"
+    },
+    {
+      "name": "TILAWA_NOTICE.md",
+      "bytes": 3218,
+      "sha256": "8fe7d583d3dbe637cf72d6159bfe5f650dd6f7733deb976a6b57fccfaaa504a1"
+    }
+  ]
+}

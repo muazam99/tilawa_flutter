@@ -11,3 +11,8 @@ prototype/app/ios/.symlinks/
 prototype/app/ios/Flutter/ephemeral/
 prototype/app/ios/Flutter/Generated.xcconfig
 prototype/app/ios/Flutter/flutter_export_environment.sh
+
+# Public SDK development products. Runtime code/WASM assets are tracked.
+.dart_tool/
+build/
+.flutter-plugins-dependencies

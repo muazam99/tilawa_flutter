@@ -1,12 +1,12 @@
 # Plan: Tilawa Flutter SDK
 
-**Status:** Phase 2 in progress: public API contract draft saved for owner review. Android Phase 1 checkpoint accepted for API design; iOS and deferred Android checks remain release gates.
+**Status:** Phase 3 in progress: development SDK implementation prepared, validation underway. Phase 2 design checkpoint accepted; iOS and deferred Android checks remain release gates.
 **Created:** 2026-10-12
 **Last updated:** 2026-10-12
 **Package working name:** `tilawa_flutter`
 **Components:** Independent public Flutter SDK, standalone example app, future Qiyam consumer.
 **Initial platforms:** Android and iOS 16+.
-**Current phase:** Phase 2, public Dart API design.
+**Current phase:** Phase 3, audio/assets and engine integration.
 
 ## 1. Goal
 
@@ -307,7 +307,7 @@ Acceptance: meaningful end-to-end evidence on both supported platforms, includin
 
 Owner-approved progression on 2026-10-12: current Android evidence is sufficient to begin Phase 2 API design. Both-platform feasibility is not declared complete. iPhone verification and deferred Android/resource checks remain mandatory validation/release gates; architecture stays provisional.
 
-### Phase 2: Finalize the public Dart API (in progress, draft awaiting review)
+### Phase 2: Finalize the public Dart API (design checkpoint accepted)
 
 Define immutable events, session methods/state, audio contract, adapter interfaces, configuration, error categories, supported capabilities, metadata resolver and lifecycle/ownership semantics.
 
@@ -315,13 +315,15 @@ Explicitly examine upstream duplicate suppression, progress semantics, lost trac
 
 Acceptance: reviewed public contract with examples for raw audio, event subscription and optional metadata. Ordinary consumers do not depend on Qiyam or runtime internals. Unsupported/uncertain capabilities are documented.
 
-Deliverable: `API_CONTRACT.md`, source-reviewed against the pinned ZipformerSession and emission code. It specifies audio copying/backpressure, session/control lifecycle, immutable typed events, canonical completion, capabilities/config/errors, adapter ownership, separate microphone and metadata layers, source limitations and proposed consumer examples. Owner review is pending; it is not an implemented public package.
+Deliverable: `API_CONTRACT.md`, source-reviewed against the pinned ZipformerSession and emission code. It specifies audio copying/backpressure, session/control lifecycle, immutable typed events, canonical completion, capabilities/config/errors, adapter ownership, separate microphone and metadata layers, source limitations and consumer examples. Owner subsequently approved proceeding to Phase 3; source implementation and validation limits are tracked separately.
 
-### Phase 3: Implement audio and asset handling (pending)
+### Phase 3: Implement audio and asset handling (in progress)
 
 Implement the approved engine adapter, serialized processing, bounded queues, input conversion and optional microphone convenience. Add versioned/local/bundled/downloaded asset loading, integrity checks, cancellation/recovery and resource lifecycle.
 
 Acceptance: usable documented audio/asset paths; offline reuse; predictable failure/overrun/interrupt behaviour; correct cleanup. Perform authorized verification appropriate to the selected implementation and record actual outcomes.
+
+Implementation/checkpoint: `PHASE3.md`, public development package under `lib/`, bundled runtime JS/WASM/notices under `assets/runtime`, large assets installed separately. Private public-API validation surface: `prototype/app/lib/sdk_probe.dart`. No Phase 4/5 transition is implied.
 
 ### Phase 4: Complete tracking and metadata mapping (pending)
 
@@ -343,7 +345,7 @@ Use the established session/event model to add supported correction and retry wo
 
 ## 13. Current phase and resume notes
 
-**Current phase:** Phase 2 API design, approved by owner after accepting the Android feasibility checkpoint. `API_CONTRACT.md` is the first review draft. See `prototype/FEASIBILITY.md` for measured evidence and deferred release gates.
+**Current phase:** Phase 3 implementation, owner-approved after the Phase 2 draft. Read `PHASE3.md` and README for implemented API/assets/capture paths and actual validation outcomes; platform/resource release gates remain in FEASIBILITY.
 
 As of 2026-10-12:
 
@@ -361,9 +363,9 @@ As of 2026-10-12:
 
 ### Next-session handoff
 
-1. Read this plan and `API_CONTRACT.md`, then check the SDK repository. Active work is Phase 2 contract review, not additional device checks or a new prototype. A public SDK implementation does not yet exist.
+1. Read this plan, `PHASE3.md` and README, then inspect SDK Git status. Public development source now exists under lib/. Resume Phase 3 validation/remaining gaps instead of restarting API discussion.
 2. The app `Tilawa Bridge Probe` (`dev.qiyam.tilawa_bridge_probe`) is installed on the owner's Infinix. Last installed arm64 release uses `PROBE_AUTORUN=true`, `PROBE_CYCLES=10`, `PROBE_MIC_SECONDS=300`, default one thread. Fresh launch runs replay plus ten recreation cycles; Start mic is manual and stops automatically after five minutes in this measurement build only. This is not an SDK duration limit. It keeps its own foreground Android window awake; capture was manually stopped by the owner.
-3. Review API_CONTRACT sections 2..10 and consumer examples. Proposed defaults and runtime cancellation/segmentation details require review/implementation; no Phase 3 execution yet. Pay particular attention to scores exceeding 1, unsure word matches, stop fallback and duplicate suppression. Accepting the phase transition did not implicitly approve every API signature.
+3. The Phase 2 contract is the accepted design basis. Phase 3 has source-prepared serialization, immutable observations, loopback/WASM integration, local/bundled/downloaded integrity-checked assets and optional foreground capture. Check PHASE3 actual outcomes before claiming working facade/cleanup/interrupt behaviour. No authored test suite or Phase 4/5 work authorized.
 4. Deferred validation: 125.2 s offline live pass had zero overruns and mean feed220ms per480ms chunk, but longer capture/interruption/route/denial and resource budgets remain. Renderer reached about486MiB PSS during recreation. Mac/iPhone unavailable. Reconnect/authorize device checks when resumed; do not advertise verified iOS or finalize architecture from Android alone.
 
 Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flutter lockfiles are saved. Downloaded source, model/corpus and generated runtime/build products are ignored by Git. The local release APK is at `prototype/app/build/app/outputs/flutter-apk/app-release.apk` and can be regenerated using the prototype README. Dedicated local repository/checkpoint commits were owner-authorized; no remote, push, publication or Qiyam integration occurred.
@@ -371,7 +373,7 @@ Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flut
 ### Working permissions and boundaries
 
 - Original handoff authorized planning only. On 2026-10-12 the owner additionally authorized Phase 1 setup and validation on the connected physical Android phone; this does not authorize later-phase execution or publication.
-- Owner subsequently approved transition to Phase 2 public API design with Android checkpoint accepted and remaining platform checks deferred to validation. Phase 3 implementation still requires the reviewed contract and owner phase approval.
+- Owner subsequently approved Phase 2 API design and then said proceed after the contract draft, authorizing Phase 3 implementation and its bounded integration checks. Deferred platform/resource gates remain; publication and later-phase execution require separate approval.
 - No Android emulator requested. iOS runtime verification is not available in the current Windows environment.
 - Do not add or modify tests unless the owner explicitly requests them. Verification design remains necessary, but test authoring/execution needs permission.
 - Owner authorized dedicated local repository and progress checkpoint commits during continuation. Push, remote repositories and pub.dev publication still require separate explicit authorization.
