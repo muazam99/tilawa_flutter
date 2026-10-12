@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:record/record.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -45,6 +46,22 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
   bool _busy = true;
   bool _recording = false;
   bool _closingMic = false;
+  static const _diagnostics = MethodChannel(
+    'dev.qiyam.tilawa_bridge_probe/diagnostics',
+  );
+  final _captureClock = Stopwatch();
+  Timer? _micDeadline;
+  Timer? _micReport;
+  StreamSubscription<RecordState>? _recorderState;
+  int _capturedBytes = 0;
+  int _fedBytes = 0;
+  int _queueHighWater = 0;
+  int _feedCalls = 0;
+  int _feedMicros = 0;
+  int _maxFeedMicros = 0;
+  int _overruns = 0;
+  int _micMatches = 0;
+  int _micProgress = 0;
 
   @override
   void initState() {
@@ -84,6 +101,10 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
       _failure(message['error']);
     } else if (message['kind'] == 'event') {
       final event = Map<String, dynamic>.from(message['event'] as Map);
+      if (_recording || _closingMic) {
+        if (event['type'] == 'verse_match') _micMatches++;
+        if (event['type'] == 'word_progress') _micProgress++;
+      }
       if (event['type'] == 'word_progress') {
         if (mounted) {
           setState(
@@ -155,7 +176,68 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
     _record('dispose ${jsonEncode(await _client.call('dispose'))}');
     _record('reinitialize ${jsonEncode(await _client.call('initialize'))}');
     await _sample('ref_112001');
+    const cycles = int.fromEnvironment('PROBE_CYCLES');
+    if (cycles < 0 || cycles > 10) {
+      throw StateError('PROBE_CYCLES must be 0..10');
+    }
+    for (var cycle = 1; cycle <= cycles; cycle++) {
+      _record('cycle $cycle before ${jsonEncode(await _nativeSnapshot())}');
+      await _client.call('dispose');
+      _record('cycle $cycle released ${jsonEncode(await _nativeSnapshot())}');
+      _record(
+        'cycle $cycle initialize ${jsonEncode(await _client.call('initialize'))}',
+      );
+      await _sample('ref_112001');
+      _record('cycle $cycle after ${jsonEncode(await _nativeSnapshot())}');
+      await Future<void>.delayed(const Duration(seconds: 2));
+    }
     _record('AUTORUN_COMPLETE');
+  }
+
+  Future<Object?> _nativeSnapshot() async {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return {'available': false};
+    }
+    return _diagnostics.invokeMethod<Object?>('snapshot');
+  }
+
+  Map<String, Object> _micMetrics() => {
+    'captureElapsedMs': _captureClock.elapsedMilliseconds,
+    'capturedBytes': _capturedBytes,
+    'capturedSecondsAt16k': _capturedBytes / 32000,
+    'fedBytes': _fedBytes,
+    'pendingChunks': _chunks.length,
+    'remainderBytes': _remainder.length,
+    'queueHighWater': _queueHighWater,
+    'feedCalls': _feedCalls,
+    'meanFeedMs': _feedCalls == 0 ? 0 : _feedMicros / _feedCalls / 1000,
+    'maxFeedMs': _maxFeedMicros / 1000,
+    'overruns': _overruns,
+    'verseMatches': _micMatches,
+    'wordProgress': _micProgress,
+  };
+
+  Future<void> _reportMic() async {
+    try {
+      final native = await _nativeSnapshot();
+      if (_recording && !_closingMic) {
+        _record(
+          'microphone_metrics ${jsonEncode(_micMetrics())} native ${jsonEncode(native)}',
+        );
+      }
+    } catch (error) {
+      _record('diagnostics_unavailable $error');
+    }
+  }
+
+  Future<void> _feedMic(Uint8List bytes) async {
+    final clock = Stopwatch()..start();
+    await _client.call('feed', {'pcm16': base64Encode(bytes)});
+    final elapsed = clock.elapsedMicroseconds;
+    _feedCalls++;
+    _fedBytes += bytes.length;
+    _feedMicros += elapsed;
+    if (elapsed > _maxFeedMicros) _maxFeedMicros = elapsed;
   }
 
   Future<void> _startMic() async {
@@ -166,6 +248,9 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
       await _client.call('reset');
       _remainder = Uint8List(0);
       _chunks.clear();
+      _capturedBytes = _fedBytes = _queueHighWater = _feedCalls = 0;
+      _feedMicros = _maxFeedMicros = _overruns = _micMatches = _micProgress = 0;
+      _captureClock.reset();
       final stream = await _recorder.startStream(
         const RecordConfig(
           encoder: AudioEncoder.pcm16bits,
@@ -176,10 +261,12 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
           autoGain: false,
         ),
       );
-      if (!mounted) {
+      if (!mounted ||
+          WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
         await _recorder.stop();
         return;
       }
+      _captureClock.start();
       setState(() {
         _recording = true;
         _status = 'Listening locally: requested mono 16 kHz PCM16';
@@ -191,11 +278,31 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
           unawaited(_stopMic());
         },
       );
+      _recorderState = _recorder.onStateChanged().listen((state) {
+        if (_recording && !_closingMic && state != RecordState.record) {
+          _record('microphone_interruption $state');
+          unawaited(_stopMic());
+        }
+      });
+      _micReport = Timer.periodic(
+        const Duration(seconds: 30),
+        (_) => unawaited(_reportMic()),
+      );
+      const seconds = int.fromEnvironment('PROBE_MIC_SECONDS');
+      if (seconds > 0) {
+        _micDeadline = Timer(
+          Duration(seconds: seconds),
+          () => unawaited(_stopMic()),
+        );
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      await _reportMic();
     });
   }
 
   void _capture(Uint8List data) {
     if (!_recording || _closingMic) return;
+    _capturedBytes += data.length;
     final combined = Uint8List(_remainder.length + data.length)
       ..setRange(0, _remainder.length, _remainder)
       ..setRange(_remainder.length, _remainder.length + data.length, data);
@@ -203,6 +310,7 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
     var offset = 0;
     while (combined.length - offset >= chunkBytes) {
       if (_chunks.length >= 4) {
+        _overruns++;
         _failure(
           'Audio overrun: four pending 480 ms chunks. Capture is stopping.',
         );
@@ -210,6 +318,7 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
         return;
       }
       _chunks.add(Uint8List.sublistView(combined, offset, offset + chunkBytes));
+      if (_chunks.length > _queueHighWater) _queueHighWater = _chunks.length;
       offset += chunkBytes;
     }
     _remainder = Uint8List.fromList(combined.sublist(offset));
@@ -232,34 +341,44 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
 
   Future<void> _drain() async {
     while (_chunks.isNotEmpty) {
-      await _client.call('feed', {
-        'pcm16': base64Encode(_chunks.removeFirst()),
-      });
+      await _feedMic(_chunks.removeFirst());
     }
   }
 
   Future<void> _stopMic() async {
     if (!_recording || _closingMic) return;
     _closingMic = true;
+    _micDeadline?.cancel();
+    _micReport?.cancel();
+    _captureClock.stop();
     try {
       await _recorder.stop();
       await _audio?.cancel();
       _audio = null;
+      await _recorderState?.cancel();
+      _recorderState = null;
       await _draining;
       if (_remainder.length.isOdd) {
         throw StateError('Capture ended with an incomplete PCM16 sample');
       }
       if (_remainder.isNotEmpty) {
-        await _client.call('feed', {'pcm16': base64Encode(_remainder)});
+        await _feedMic(_remainder);
+        _remainder = Uint8List(0);
       }
+      final flush = Stopwatch()..start();
       final result = await _client.call('stop');
-      _record('microphone_stop ${jsonEncode(result)}');
+      // Keep recited references/transcripts out of persistent device diagnostics.
+      _record(
+        'microphone_stop ${jsonEncode({..._micMetrics(), 'flushMs': flush.elapsedMilliseconds, 'processedSamples': result['samples'], 'inferenceCalls': result['inferenceCalls'], 'inferenceMs': result['inferenceMs']})}',
+      );
       if (mounted) {
         setState(() => _status = 'Microphone stopped and audio flushed.');
       }
     } catch (error) {
       _failure(error);
     } finally {
+      _chunks.clear();
+      _remainder = Uint8List(0);
       _closingMic = false;
       if (mounted) setState(() => _recording = false);
     }
@@ -267,12 +386,18 @@ class _ProbeScreenState extends State<ProbeScreen> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state != AppLifecycleState.resumed && _recording) unawaited(_stopMic());
+    if (state != AppLifecycleState.resumed && _recording) {
+      _record('microphone_lifecycle $state');
+      unawaited(_stopMic());
+    }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _micDeadline?.cancel();
+    _micReport?.cancel();
+    unawaited(_recorderState?.cancel());
     unawaited(_audio?.cancel());
     unawaited(_events?.cancel());
     unawaited(_recorder.dispose());

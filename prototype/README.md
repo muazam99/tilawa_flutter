@@ -14,6 +14,8 @@ For automatic replay/lifecycle probes: `flutter run --release -d <device-id> --d
 
 For the bounded threaded-WASM experiment: append `--dart-define=PROBE_THREADS=4`. The runtime uses one thread if the WebView lacks actual cross-origin isolation or SharedArrayBuffer. The inspected Android WebView did lack these capabilities, even with COOP/COEP headers.
 
+For the continuation measurement build, append `--dart-define=PROBE_CYCLES=10 --dart-define=PROBE_MIC_SECONDS=300`. Run probes repeats release/initialize/single-ayah recognition for ten extra cycles (allowed range 0..10). Start mic remains manual; the optional deadline stops it after five minutes. Android snapshots distinguish client PCM format from device-side capture format and include app PSS only, not renderer memory. Mic diagnostics record byte counts, feed timings, queue high-water, overruns and observation counts without recited references/transcripts. Sample renderer memory separately through ADB.
+
 ## Controls
 
 - **Single ayah:** replay pinned upstream `ref_112001`, expect 112:1.
@@ -27,7 +29,7 @@ The Android probe holds its own window awake while foregrounded. It does not cha
 
 ## Local runtime and licensing
 
-The app uses an app-owned loopback HTTP server, bundled JS/WASM, and local model/corpus files. No PC server, hosted Tilawa page, CDN script or audio upload is used at recognition time. A network-disabled device run is still an outstanding verification gate.
+The app uses an app-owned loopback HTTP server, bundled JS/WASM, and local model/corpus files. No PC server, hosted Tilawa page, CDN script or audio upload is used at recognition time. Android fresh/warm initialization, sample replay and a 125-second live microphone pass succeeded with airplane mode on and Wi-Fi disabled. iPhone offline verification remains outstanding.
 
 Model bundling is for this feasibility probe only. Generated runtime files and downloaded source/models are Git-ignored; they are not the intended public-package archive.
 
@@ -41,4 +43,4 @@ Android release builds currently use Flutter's generated debug signing key for l
 
 ## Evidence
 
-See [FEASIBILITY.md](FEASIBILITY.md). Device logs have the prefix `TILAWA_PROBE`. Successful analyzer/build results and replay outcomes do not substitute for iPhone, sustained microphone, network-disabled, or memory/cleanup verification.
+See [FEASIBILITY.md](FEASIBILITY.md), including continuation evidence and remaining gates. Device logs have the prefix `TILAWA_PROBE`. Five-minute automatic stop is a configurable measurement-build convenience, not an SDK duration limit. Android offline/live/recreation results do not establish iPhone, longer sustained capture, interruptions or leak-free cleanup.

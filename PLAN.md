@@ -1,6 +1,6 @@
 # Plan: Tilawa Flutter SDK
 
-**Status:** Phase 0 complete. Phase 1 partial: Android release recognition/lifecycle smoke evidence recorded; iOS and remaining acceptance checks outstanding.
+**Status:** Phase 0 complete. Phase 1 partial: Android offline replay, ten runtime recreation cycles and 125-second live microphone evidence recorded; iOS and remaining acceptance checks outstanding.
 **Created:** 2026-10-12
 **Last updated:** 2026-10-12
 **Package working name:** `tilawa_flutter`
@@ -339,36 +339,37 @@ Use the established session/event model to add supported correction and retry wo
 
 ## 13. Current phase and resume notes
 
-**Current phase:** Phase 1 partial, paused for a new session at the owner's request. See `prototype/FEASIBILITY.md` for the bounded comparison and recorded evidence.
+**Current phase:** Phase 1 partial. Continuation checkpoint saved after owner chose to retain the 125-second microphone pass and defer the full five-minute measurement. See `prototype/FEASIBILITY.md` for the bounded comparison and recorded evidence.
 
 As of 2026-10-12:
 
 - The owner approved the public SDK scope, Android/iOS targets, iOS 16 minimum and five-phase order.
 - The owner wants analytics observations, including page-mapping support; applications own aggregation/persistence and repeat-counting rules.
 - Phase 0 handoff reconfirmed. Phase 1 source/assets pinned in `prototype/baseline.json`; source Git blobs and model/corpus/I/O/license SHA-256 verified during setup. A private Flutter WebView/WASM probe and local runtime bundle are prepared.
-- No dedicated Git repository has been initialized and no publication action has been taken.
+- Dedicated local Git repository initialized with owner approval during continuation; initial Phase 1 checkpoint is `f981d91`. No remote/push or publication action has been taken.
 - Architecture remains provisional; investigate the bridge candidates before declaring native/Dart/WebView choices settled.
 - Read the source links below when needed. Do not restart the product discussion or infer full functionality from the homepage.
 - Owner authorized setup, dependency installation, downloads and validation using the connected real phone (no Android emulator). Debug and arm64 release APKs built and ran on Infinix X678B/Android 14. The release probe matched 112:1 and 113:1-5 with word progress; silence/reset/stop/dispose/reinitialize smoke checks completed. See `prototype/FEASIBILITY.md` for measurements and limitations.
 - Foreground release multi-ayah replay processed 24.292 s input in 12.805 s; paced replay finished in 25.164 s including flush. WebView cannot enable threaded WASM on the inspected device. Separate app/renderer memory snapshots were approximately 324/302 MiB, so footprint needs further review.
-- Next: microphone/hardware-format and network-disabled checks, agreed resource/performance targets and physical-iPhone verification on Mac/Xcode. These remain outstanding; no Phase 2 API finalization was started.
-- Owner personally tested the installed prototype and reported enthusiastic success and quick recognition. The exact test scenario was not specified; this is positive owner feedback, not completion of every microphone/offline/lifecycle gate.
+- Continuation established Android delivered/client and device-side mono 16 kHz PCM16 format, offline fresh/warm initialization/replay and a 125-second live pass. Remaining: longer sustained capture, permission/interruption/route checks, agreed resource/performance targets and physical-iPhone verification on Mac/Xcode. No Phase 2 API finalization was started.
+- Owner confirmed the earlier successful personal test used live microphone recitation. Detailed sustained/format/interruption acceptance remains separate from that feedback.
+- Continuation: owner approved measuring before setting performance targets and ten runtime recreation cycles. Offline five-minute measurement was prepared, but owner manually stopped after 125 seconds and chose to save that evidence rather than rerun. Mac/physical iPhone currently unavailable. Results and limits are recorded in `prototype/FEASIBILITY.md`; progress saved in local Git checkpoints.
 
 ### Next-session handoff
 
 1. Read this plan, `prototype/FEASIBILITY.md` and `prototype/README.md`; check the working tree and reconnect the actual phone before any device operations. Resume the existing prototype rather than rebuilding the product discussion or assuming a public SDK already exists.
-2. The app `Tilawa Bridge Probe` (`dev.qiyam.tilawa_bridge_probe`) is installed on the owner's Infinix. The last installed arm64 release build uses `PROBE_AUTORUN=true` and `PROBE_THREADS=4`; opening a fresh app instance automatically runs the probes, with threads falling back to one. It keeps its own foreground Android window awake. No microphone recording was left running by the agent.
-3. Start with the remaining Android checks: confirm the owner's tested scenario, inspect/verify native microphone format and sustained feeding, then network-disabled initialization/recognition and interruption/route behaviour. Agree measurable resource/performance targets and measure memory across repeated sessions.
+2. The app `Tilawa Bridge Probe` (`dev.qiyam.tilawa_bridge_probe`) is installed on the owner's Infinix. Last installed arm64 release uses `PROBE_AUTORUN=true`, `PROBE_CYCLES=10`, `PROBE_MIC_SECONDS=300`, default one thread. Fresh launch runs replay plus ten recreation cycles; Start mic is manual and stops automatically after five minutes in this measurement build only. This is not an SDK duration limit. It keeps its own foreground Android window awake; capture was manually stopped by the owner.
+3. Continue Android evidence in FEASIBILITY.md. The 125.2 s offline live pass had zero overruns, queue high-water one, mean feed 220 ms per 480 ms chunk, six verse-match/210 progress observations and all accepted bytes fed. Owner explicitly deferred the full five-minute check. Agree resource targets, then remaining sustained/interruption/route/denial checks. Renderer PSS reached about 486 MiB during recreation and settled around 306 MiB; architecture remains provisional.
 4. Physical-iPhone verification requires Mac/Xcode. Keep Phase 1 partial until both-platform acceptance is established; advance to Phase 2 only after the owner agrees the phase transition.
 
-Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flutter lockfiles are saved. Downloaded source, model/corpus and generated runtime/build products are ignored by Git. The local release APK is at `prototype/app/build/app/outputs/flutter-apk/app-release.apk` and can be regenerated using the prototype README. No commits, remote repository, publication or Qiyam integration occurred.
+Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flutter lockfiles are saved. Downloaded source, model/corpus and generated runtime/build products are ignored by Git. The local release APK is at `prototype/app/build/app/outputs/flutter-apk/app-release.apk` and can be regenerated using the prototype README. Dedicated local repository/checkpoint commits were owner-authorized; no remote, push, publication or Qiyam integration occurred.
 
 ### Working permissions and boundaries
 
 - Original handoff authorized planning only. On 2026-10-12 the owner additionally authorized Phase 1 setup and validation on the connected physical Android phone; this does not authorize later-phase execution or publication.
 - No Android emulator requested. iOS runtime verification is not available in the current Windows environment.
 - Do not add or modify tests unless the owner explicitly requests them. Verification design remains necessary, but test authoring/execution needs permission.
-- Do not commit, push, create remote repositories or publish to pub.dev without explicit authorization.
+- Owner authorized dedicated local repository and progress checkpoint commits during continuation. Push, remote repositories and pub.dev publication still require separate explicit authorization.
 - Preserve unfamiliar existing files and changes. Check the active checkout before editing.
 - Keep Qiyam integration separate; this task authorizes no app/API/database edits.
 - Save a checkpoint after each meaningful phase, distinguishing source-prepared work from actual runtime evidence.
