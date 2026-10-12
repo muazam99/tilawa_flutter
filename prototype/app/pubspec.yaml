@@ -1,0 +1,22 @@
+name: tilawa_bridge_probe
+description: "Private Phase 1 Tilawa bridge feasibility probe."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: 4.13.0
+  path_provider: 2.1.5
+  record: 6.1.2
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/runtime/

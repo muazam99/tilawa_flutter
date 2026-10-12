@@ -1,0 +1,41 @@
+{
+  "upstream": {
+    "repository": "https://github.com/yazinsai/tilawa",
+    "commit": "2f2617460dc4a6b967e0cc49fa04804bbf22ec69",
+    "coreVersion": "0.4.0",
+    "license": "MIT with asset exceptions in NOTICE.md"
+  },
+  "assets": [
+    {
+      "file": "model.onnx",
+      "url": "https://github.com/yazinsai/tilawa/releases/download/zipformer-a0w-ep1-a0.5/zipformer_a0w_ep1_a05.int8.onnx",
+      "releaseAssetId": 606503050,
+      "bytes": 69246033,
+      "sha256": "bfb5b712695634a6099b45a6a78003bd5103417c4eae6338277d54679254905a",
+      "license": "NPL-1.2"
+    },
+    {
+      "file": "corpus.json",
+      "url": "https://github.com/yazinsai/tilawa/releases/download/v0.3.0/zipformer_quran.json",
+      "releaseAssetId": 569433023,
+      "bytes": 5453439,
+      "sha256": "24360c05ec88fcacf3419c1fe6cd81d69e653326a0bf0e4fb507e7b98fc88127",
+      "license": "NPL-1.2"
+    },
+    {
+      "file": "io.json",
+      "url": "https://github.com/yazinsai/tilawa/releases/download/zipformer-a0w-ep1-a0.5/zipformer_a0w_ep1_a05.io.json",
+      "releaseAssetId": 606503126,
+      "bytes": 26867,
+      "sha256": "7dca1dafd6ee26044a0d3ba6b9483278203f55df7cc95d40cda865183a0d797e",
+      "license": "NPL-1.2 (distributed with model)"
+    },
+    {
+      "file": "NPL-1.2.txt",
+      "url": "https://github.com/yazinsai/tilawa/releases/download/zipformer-a0w-ep1-a0.5/NPL-1.2.txt",
+      "bytes": 7041,
+      "sha256": "77526bdbfac94132e5114c3a34492c33f915e4b7f310f00b9995500d3610cab5",
+      "license": "License text"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+# Phase 1 inputs and generated build products, not distributable SDK assets.
+prototype/.cache/
+prototype/node_modules/
+prototype/app/assets/runtime/
+prototype/app/.dart_tool/
+prototype/app/build/
+prototype/app/android/.gradle/
+prototype/app/android/local.properties
+prototype/app/ios/Pods/
+prototype/app/ios/.symlinks/
+prototype/app/ios/Flutter/ephemeral/
+prototype/app/ios/Flutter/Generated.xcconfig
+prototype/app/ios/Flutter/flutter_export_environment.sh
