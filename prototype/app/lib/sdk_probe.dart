@@ -13,6 +13,7 @@ import 'asset_probe.dart';
 import 'audio_fixture.dart';
 import 'control_probe.dart';
 import 'microphone_probe.dart';
+import 'recovery_probe.dart';
 
 void main() => runApp(const MaterialApp(home: _SdkProbe()));
 
@@ -58,6 +59,17 @@ class _SdkProbeState extends State<_SdkProbe> {
         assets = await install.completed;
       }
       _log('ASSETS_VERIFIED');
+      if (const bool.fromEnvironment('PROBE_NATIVE_BRIDGE')) {
+        await runNativeBridgeProbe(assets, _log);
+        return;
+      }
+      if (const bool.fromEnvironment('PROBE_RECOVERY')) {
+        await runRecoveryProbe(assets, _log);
+        if (const bool.fromEnvironment('PROBE_RECOVERY_REQUIRE_FIXED')) {
+          await runResponseRecoveryProbe(support, _log);
+          await runNativeFocusProbe(assets, _log);
+        }
+      }
       if (const bool.fromEnvironment('PROBE_CONTROLS')) {
         await runControlProbe(assets, _log);
       }

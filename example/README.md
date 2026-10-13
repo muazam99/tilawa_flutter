@@ -77,4 +77,12 @@ Supply mono16kHz float32 PCM in[-1,1]. Decode/resample external files in your ap
 | Reset / helper disposal | Ready/idle, cleared ayah/progress/metadata/result/transcript and zero counts; then session not open/helper disposed. |
 | Device restoration | Airplane off, Wi-Fi/data on, matching original settings; microphone stopped and session disposed. |
 
-This is bounded functionality evidence, not an accuracy, sustained-resource or leak-free assessment. Physical iPhone, remaining capture/bridge faults and resource budgets remain release gates. Dark-mode/large-text/landscape accessibility runtime coverage is still pending. Package archive size and publication dry run belong to later slices, not this APK measurement.
+This is bounded functionality evidence, not an accuracy, sustained-resource or leak-free assessment. Physical iPhone, remaining route/renderer/native cleanup faults and resource budgets remain release gates. Dark-mode/large-text/landscape accessibility runtime coverage is still pending. Package archive size and publication dry run belong to later slices, not this APK measurement.
+
+### Android recovery continuation (2026-10-13)
+
+Updated SDK helper, analyzer clean and19.0MB arm64 release APK installed on the same phone. Verified existing installation/runtime opened without a new download. Deliberate OS microphone denial returned microphonePermissionDenied, session ready/helper failed, with explicit retry available. Restoring the original grant allowed the same example to Start successfully.
+
+Leaving for Home during capture stopped the recorder, completed a background interruption with307200processed/submitted samples and left session/helper interrupted when foregrounded. No automatic restart. Explicit Reset/new-helper Start then Stop completed with288000processed/submitted samples; empty ambient-input sequences are lifecycle evidence, not recognition accuracy. Dispose retained files; local reopen returned ready/idle and cleared run presentation. Final helper/session disposed, original granted/USER_SET permission flags restored; airplane0/Wi-Fi1/data1 unchanged.
+
+Separate private diagnostics validated capture overload/stalled shutdown, rapid controls, real Android audio-focus loss, actual WebView JavaScript bridge error and mid-response HTTPS recovery. See root PHASE3.md for fault mechanisms and limits. Physical headset routes/disconnection, renderer-process loss/native teardown failure remain open; iPhone deferred for now.

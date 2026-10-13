@@ -1,12 +1,12 @@
 # Plan: Tilawa Flutter SDK
 
-**Status:** Phase 4 checkpoint retained. Phase5A baseline/inventory and5B standalone example/Android checkpoint complete on2026-10-12. This owner-requested local checkpoint on master follows45d4798. Phase5C–G, physical iPhone and deferred capture/bridge/routes/resource gates remain open; no push, dry run or publication.
+**Status:** Phase5A/5B saved in local commit73ba68e. This owner-requested local checkpoint on master follows73ba68e and saves Phase5C recovery and5D Android broader/sustained/resource evidence recorded on2026-10-13. Mixed-passage omissions and material renderer recreation footprint remain acceptance items. Physical routes/renderer/native teardown, iPhone (deferred), final runtime/resource acceptance and5E–G remain open. No push, dry run or publication.
 **Created:** 2026-10-12
-**Last updated:** 2026-10-12
+**Last updated:** 2026-10-13
 **Package working name:** `tilawa_flutter`
 **Components:** Independent public Flutter SDK, standalone example app, future Qiyam consumer.
 **Initial platforms:** Android and iOS 16+.
-**Current phase:** Phase 4 checkpoint complete; detailed Phase 5 plan saved for the next session. Phase 5 implementation has not started.
+**Current phase:** Phase5D Android evidence collected; final intended-platform/recognition/resource/runtime acceptance pending. See sections13/16, PHASE3.md and prototype/FEASIBILITY.md.
 
 ## 1. Goal
 
@@ -333,7 +333,7 @@ Acceptance: standalone Flutter consumer can find recitation and follow words usi
 
 Checkpoint: private tracking_probe.dart consumes only exported SDK interfaces and developer metadata. Session binds resolver edition/version at open and rejects empty/invalid word rows. Isolated source-compatible diagnostics passed repeated/revised snapshots, lost/sample-state distinction, uncalibrated scores, immutable payloads, terminal ordering, 17 metadata mismatches/resolver failure and stale lookup/reset guards. Real Android runtime validated nine fixture ayahs/38 words, tracked113 twice with duplicate match suppression, then located112:1; owner confirmed live word following. Corpus plain labels and verified page604/juz30 references are a limited developer fixture, not a universal mapping or correctness/accuracy assessment. Actual lost/relocated acoustic coverage and deferred platform/resource checks are not implied. Phase5 example/release work remains separate.
 
-### Phase 5: Validate the example and prepare pub.dev release (pending)
+### Phase 5: Validate the example and prepare pub.dev release (5A/5B complete; 5C checkpoint verified)
 
 Build a standalone example showing setup, live recognition, word progress and optional metadata. Illustrate consumer-owned analytics with clearly labelled assumptions. Prepare README, API documentation, CHANGELOG, license/NOTICE inventory, supported-platform matrix and release metadata.
 
@@ -347,7 +347,7 @@ Use the established session/event model to add supported correction and retry wo
 
 ## 13. Current phase and resume notes
 
-**Current phase:** Phase5A baseline/inventory and5B standalone example/Android checkpoint complete. Owner requested5A+5B and authorized scaffold/dependencies/analyze/build and bounded physical-Android checks, then requested a local commit. Starting baseline45d4798 on clean master; this checkpoint saves the new example/source/docs. Read section16/NOTICE and example/README; PHASE3/FEASIBILITY retain deferred gates. Next slice5C requires owner progression; no push/dry run/publication.
+**Current phase:** Phase5D Android evidence collected on2026-10-13 after owner-approved5C/Android5D progression. Eight pinned clips/five derived cases, five-minute paced input, five-minute foreground mic and five recreation/reset/disposal cycles completed. Standalone/noisy/partial/silence cases behaved as expected; two compound switches omitted references and remain documented limitations. Sustained processing kept up/no capture errors, but renderer recreation sample853740KiB PSS requires explicit resource/runtime acceptance. iPhone deferred for now; physical route/disconnection/renderer/native teardown, intended-platform/resource acceptance and5E–G gates remain open. This owner-requested local checkpoint saves source/diagnostics/docs on master following73ba68e; no push/dryrun/publication.
 
 As of 2026-10-12:
 
@@ -365,12 +365,14 @@ As of 2026-10-12:
 
 ### Next-session handoff
 
-1. Inspect Git status and recent commits on master. This owner-requested5A+5B checkpoint follows45d4798 and saves the example/source/docs. Resume section16 at5C when requested, retaining remaining Phase3/platform/resource gates. No push, dry run or publication was performed.
-2. Latest installed77.1MB arm64 APK targets lib/tracking_probe.dart with PROBE_TRACK_CONTRACT/PROBE_TRACK_AUTORUN=true, package dev.qiyam.tilawa_bridge_probe. Launch performs isolated diagnostics and real repeated/changed-passage replay, then leaves interactive word following. Capture starts only on Start mic. sdk_probe.dart/main.dart retain Phase3/Phase1 surfaces. SDK runtime assets remain unchanged.
+1. Inspect Git status/recent commits on master. This owner-requested5C/Android5D checkpoint follows73ba68e (5A/5B). Read section16/PHASE3/FEASIBILITY checkpoints before further work. Physical iPhone is deferred for now, not validated or removed from intended release support. No push, dry run or publication was performed.
+2. Latest private APK targets lib/performance_probe.dart with PROBE_VALIDATION=switch-only (89.5MB), dev.qiyam.tilawa_bridge_probe, force-stopped after validation. Prior5D broader/resources modes use the same entry point;5C bridge/recovery probes remain separately runnable. Additional ignored private benchmark audio explains APK growth, not SDK archive size. Updated standalone example19.0MB remains installed, microphone/helper/session disposed, downloaded assets retained. SDK runtime artifact pins remain unchanged.
 3. Phase4 diagnostic metadata mismatches17/resolverfailure were nonfatal; duplicate/revised progress and full transcripts replaced snapshots, lost remained diagnostic while sampled state tracking, scores above1 preserved, malformed operation batches suppressed and async mappings fenced across reset. Real runtime checked nine fixture ayahs/38 words. First113 replay5matches/48progress; second0newmatches/46newprogress; final113:1-5,112:1 yielded6matches/97progress/952012 samples and canonical result identity. Located3/completed2, no actual acoustic lost/relocated event in this run.
 4. Owner confirmed Arabic words/ayah followed live recitation. Successful live stop5sequenceentries/485120samples, then reset cleared display and session/helper disposed. Earlier exploratory stops0/2 entries; no accuracy generalization. Labels come from pinned corpus; page604/juz30 fixture provenance/hash captured. Developer still verifies arbitrary real display data; SDK validates claimed identity/structure. No authored unit-test suite; root/probe analyze clean/release build passed.
-5. Remaining gates: Phase3 capture overload/start-stop/nativeformat/routes/audiofocus/disconnection/bridge-loss/failedcleanup, sustained resources/budgets/architecture decision and Mac/iPhone. Phase5 builds the public developer example, docs/licenses/package metadata and authorized publication dry run. Publication/Qiyam integration remain separate requests.
+5. Remaining gates: physical input-route changes/disconnection, renderer-process loss and native cleanup failure beyond controlled-adapter evidence; sustained resources/budgets/architecture decision, broader passages and Mac/iPhone. Phase5A/B example exists;5E–G final docs/licenses/package metadata/archive/consumer/dryrun remain pending. Publication/Qiyam integration remain separate requests.
 6. Owner accepted the limited112/113 fixture.5A inventory in NOTICE and5B conventional example are implemented. Analyzer clean/19.0MB release APK installed as dev.tilawa.tilawa_flutter_example on Infinix X678B/Android14; empty-store download/progress/cancel/userretry/license/runtime passed. Reopened with airplane on/Wi-Fi/data off and no current network; owner confirmed live highlighting. Stop386560samples/4matches/48progress/final113:2–5 complete, not full-surah/accuracy proof. Reset cleared presentation/counts; session/helper disposed, connectivity restored. example/README holds reproducible setup/evidence. Physical iPhone/accessibility variants and broader/resource/fault gates remain open.
+7. 2026-10-13 recovery evidence: real mic+stalled adapter initially left accepting/stopping after overload, despite400ms configured interruption budget. Fixed interruption-before-drain, bounded normal drain including partial chunk, discard-on-interruption/disposal and binding ownership until cleanup. Overload/stalledStop incomplete results,5 rapid Start/Stop cycles, helper replacement/dispose-duringStart/resetRestart, injected bridge loss/late output and failed/timed-out cleanup leases passed. Mid-response realHTTPS faults recovered in5requests; exhaustion2/cancel1 requests, no partial activation/stale stages, older version preserved. Real Android focus loss finalized completely/no autorestart/reset recovery; client/device mono16kPCM16 observed. Actual WebViewJS fault rejected pending feed/reset, fenced late output and fresh session completed. Normal113:1–5 replay5matches/49progress/388670samples/canonical result, silence/reset/disposal passed. Example denial/regrant, background interruption307200samples, reset/restart/stop288000samples and local reopen passed with ambient input, not new recognition accuracy evidence. Original grants/connectivity restored; see PHASE3/exampleREADME.
+8. 2026-10-13 Android5D: pinned standalone1:2/2:255/36:1–5/59:22–24/114:1–6/114:3/3:23/113:1–5 and mid-ayah/noisy/silence cases yielded expected references.1:2 and114:3 were stop fallback/no liveprogress. Compound1:2repeat→113 omitted1:2; tracked2:255repeat→113 retained2:255 but omitted113:1–2. Complete finalization is not exhaustive recognition/history. Five-minute paced4.8million samples mean226.757ms/p95247/max352/354msmaxschedulelag;300.115s mic299.92sPCM mean221.834ms/p95240/max304, zeroerrors, sampled sessionhighwater7680samples. Fivecycles/open5.806..6.522s passed; renderer sample834MiB PSS duringrecreation then dropped, substantialswap duringmic. Runtime/budgets remain undecided. Raw ignored evidence under prototype/.cache/validation-evidence; full outcomes inFEASIBILITY. Phone connectivity0/1/1 unchanged, privateappforce-stopped/exampledisposed.
 
 Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flutter lockfiles are saved. Downloaded source, model/corpus and generated runtime/build products are ignored by Git. The local release APK is at `prototype/app/build/app/outputs/flutter-apk/app-release.apk` and can be regenerated using the prototype README. Dedicated local repository/checkpoint commits were owner-authorized; no remote, push, publication or Qiyam integration occurred.
 
@@ -382,6 +384,9 @@ Reproducible assets/source are pinned in `prototype/baseline.json`; npm and Flut
 - Owner accepted the limited display fixture, requested a detailed Phase5 plan, then requested saving that plan and committing current progress. This authorizes this local checkpoint, not automatic Phase5 execution, new tests, remote push or publication.
 - Owner subsequently requested Phase5A+5B and explicitly authorized Flutter scaffold/dependencies/format/analyze/releasebuild and bounded physical-phone checks. This session implemented and validated those slices only; no new authored test suite, commit, push, dry run or publication.
 - Owner then explicitly requested committing the5A+5B checkpoint locally. This does not authorize a push, later-slice execution, dry run or publication.
+- On2026-10-13 owner requested proceeding with5C and authorized control/testing on the connected physical Android via scrcpy/ADB. iPhone is deferred for now. Bounded builds/diagnostics/device validation performed; no new unit-test suite, commit/push/publication action requested.
+- Owner subsequently approved Android5D progression: broader passages, five-minute paced input plus five-minute foreground microphone, resource/recreation measurements. These device-specific measurements do not approve a memory budget, final architecture, intended-platform release or publication.
+- Owner then requested committing the5C/Android5D progress locally for continuation in a new session. This authorizes the local checkpoint only, not push/publication or later-slice implementation.
 - No Android emulator requested. iOS runtime verification is not available in the current Windows environment.
 - Do not add or modify tests unless the owner explicitly requests them. Verification design remains necessary, but test authoring/execution needs permission.
 - Owner authorized dedicated local repository and progress checkpoint commits during continuation. Push, remote repositories and pub.dev publication still require separate explicit authorization.
@@ -426,15 +431,15 @@ The original research links track upstream `main` unless versioned. Phase 1 uses
 ## 16. Detailed Phase 5 execution plan
 
 **Saved:** 2026-10-12, at owner's request for continuation in another session.
-**Status:**5A baseline/inventory and5B standalone example/Android checkpoint complete.5C–G pending; intended-platform/resource/fault gates remain open. No publication candidate or dry run performed.
+**Status:**5A/5B complete;5C Android recovery and5D Android measurements checkpointed. Physical-route/renderer/native teardown, iPhone (deferred), recognition/resource/runtime acceptance and5E–G remain open. No publication candidate or dry run performed.
 **Goal:** Turn the development SDK into a reproducible package another Flutter developer can install, understand and use, with verified Android/iOS behavior and accurate documentation.
 **Finish:** A validated release candidate with satisfactory authorized pub.dev dry-run results. Actual publication remains separate.
 
 ### Starting baseline
 
-- Phase3 checkpoint88e77fe is committed. This current-progress checkpoint captures Phase4 source/docs/fixtures and the Phase5 plan; verify HEAD/status on resume.
+- Phase3 checkpoint88e77fe, Phase4/plan45d4798 and5A/5B checkpoint73ba68e are committed. This owner-requested checkpoint follows73ba68e and saves5C recovery/Android5D evidence. Verify HEAD/status on resume.
 - Current package:0.1.0-dev.1, publish_to:none, Dart^3.9.0 and Flutter>=3.35.1. Dependencies/runtime/upstream assets remain pinned; architecture remains provisional.
-- No public example/, root LICENSE, CHANGELOG.md or .pubignore yet. Existing apps are private diagnostic probes.
+- Public example/ now exists and has Android evidence. Root LICENSE, CHANGELOG.md and .pubignore remain pending; prototype/ apps are private diagnostics.
 - Recognition corpus covers114surahs; the accepted developer display fixture covers112/113 only. Broader recognition quality and full-Quran display mapping are different concerns; expanding that display dataset is not required.
 - Android has real-device evidence. Mac/Xcode/physical-iPhone verification remains pending; earlier sessions had no Mac/iPhone available.
 - Current root assets/runtime/manifest.json lists13,392,903 bytes (about13.4MB) of artifact payloads, excluding the manifest itself. Pinned downloadable model/corpus/I/O/license total74,733,380 bytes (about74.7MB). The77.1MB private probe APK and older86.1MiB Phase1 bundle are not publication-archive size measurements.
@@ -502,6 +507,8 @@ example/
 
 ### 5C. Close remaining Android failure-path gaps
 
+**Checkpoint (2026-10-13):** Owner-authorized Android recovery work implemented/verified on Infinix X678B/Android14. Real capture overload exposed stalled drain blocking interruption; fixed and revalidated. Bounded capture drain, interruption/disposal, rapid controls/helper ownership, controlled bridge+cleanup leases, mid-response HTTPS retry/exhaustion/cancel, real Android focus loss and standalone example permission/background recovery passed. Actual WebView JavaScript bridge fault rejected pending feed, fenced late output and allowed a fresh session. Root/probe/example analyzers clean and arm64 release builds passed; normal native113:1–5 replay/stop/reset/silence/dispose passed. Physical headset routes/disconnection were unavailable; renderer-process death and native cleanup failure remain distinct unverified gates. See PHASE3.md and example/README.md. This partial5C checkpoint is included in the owner-requested local progress commit, not full release readiness. iPhone explicitly deferred for now.
+
 Use existing private diagnostics for controlled faults and the standalone example for normal end-to-end behavior. No separate authored unit-test suite is assumed; test authoring remains a separate owner request.
 
 **Capture:**
@@ -523,6 +530,8 @@ Use existing private diagnostics for controlled faults and the standalone exampl
 **Done when:** Observed failures have predictable structured errors, explicit discontinuity/recovery behavior, and cleanup/lease documentation matching actual results. Fix demonstrated defects and revalidate affected paths.
 
 ### 5D. Verify iPhone, broader recognition and resource budgets
+
+**Android checkpoint (2026-10-13):** Eight pinned benchmark clips/five derived cases completed in unlocked foreground; two mixed-passage cases retained as incomplete recognition outcomes. Five-minute paced input and300.115s real microphone capture finalized with equal processed/submitted samples, no capture errors and no sampled growing backlog. Five recreation/reset/disposal cycles passed. First session.open6.951s, subsequent5.806..6.522s; material renderer recreation sample853740KiB PSS and swap cost remain explicit acceptance items. Full evidence, timing/queue/memory limits and source-backed fallback caveat are in prototype/FEASIBILITY.md. Root runtime/model pins unchanged, private audio ignored/no public fixture expansion; analyzer clean/89.5MB arm64 private builds passed. iPhone deferred for now; final intended-platform/recognition/runtime/resource acceptance remains open. This is an Android evidence checkpoint, not completed5D or release clearance.
 
 **A. Physical iPhone (requires Mac/Xcode/device):**
 - Clean example build/sign/install, iOS16 deployment settings, WKWebView JS/WASM initialization and actual loopback/ATS behavior.
@@ -588,6 +597,6 @@ Actual publication is a separate requested action. Qiyam integration and correct
 ### Cold-session start
 
 1. Read PLAN sections13/16 and the canonical Brain checkpoint; inspect Git status/log before editing.
-2. This local checkpoint saves5A+5B implementation/Android evidence. Continue5C only when requested; do not expand into5D–G or publishing actions from this limited progression.
+2. Local73ba68e saves5A/5B; this owner-requested checkpoint saves5C/Android5D diagnostics/fixes/evidence. Read observed mixed-passage/resource limitations before further work. Resolve acceptance/deferred gates and obtain later-slice progression; no further publication/commit/push action is implied.
 3. Recheck physical device/Mac availability; retain current deferred gates and the accepted limited display-fixture scope.
 4. Save progress at completed slices and before long device work, distinguishing source changes from actual verification and blockers. Update this existing plan/Brain rather than creating duplicate task plans.

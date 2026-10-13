@@ -33,6 +33,8 @@ final class TilawaMicrophone with WidgetsBindingObserver {
   StreamSubscription<Uint8List>? _audio;
   StreamSubscription<RecordState>? _recordState;
   Future<void>? _draining, _starting, _stopping, _disposing;
+  Future<void>? _interrupting;
+  late final Future<void> Function() _binding;
   TilawaCaptureState _state = TilawaCaptureState.idle;
   bool _interruptionPending = false;
   bool _discardOnClose = false;
@@ -56,6 +58,13 @@ final class TilawaMicrophone with WidgetsBindingObserver {
         'Capture needs a 480 ms session chunk limit and 1..8 pending chunks.',
       );
     }
+    if (session.snapshot.state != TilawaLifecycle.ready &&
+        session.snapshot.state != TilawaLifecycle.accepting) {
+      throw const TilawaException(
+        'invalidState',
+        'Attach capture only to a ready or accepting session.',
+      );
+    }
     final capture = TilawaMicrophone._(session, maxPendingChunks);
     if (captureBindings[session] != null) {
       throw const TilawaException(
@@ -63,10 +72,11 @@ final class TilawaMicrophone with WidgetsBindingObserver {
         'Session already has an attached microphone helper.',
       );
     }
-    captureBindings[session] = () {
+    capture._binding = () {
       capture._discardOnClose = true;
       return capture.dispose();
     };
+    captureBindings[session] = capture._binding;
     WidgetsBinding.instance.addObserver(capture);
     return capture;
   }
@@ -83,7 +93,9 @@ final class TilawaMicrophone with WidgetsBindingObserver {
       );
     }
     if (_starting != null) return _starting!;
-    if (_state == TilawaCaptureState.capturing || _stopping != null) {
+    if (_state == TilawaCaptureState.capturing ||
+        _stopping != null ||
+        _interrupting != null) {
       return Future.error(
         const TilawaException('invalidState', 'Capture is active or stopping.'),
       );
@@ -135,6 +147,7 @@ final class TilawaMicrophone with WidgetsBindingObserver {
         _remainder = Uint8List(0);
         _chunks.clear();
         _interruptionPending = false;
+        _discardOnClose = false;
         _stateTo(TilawaCaptureState.capturing);
         _audio = stream.listen(
           _capture,
@@ -248,9 +261,22 @@ final class TilawaMicrophone with WidgetsBindingObserver {
       await _recordState?.cancel();
       _audio = null;
       _recordState = null;
-      await _draining;
-      if (_remainder.isNotEmpty && !_discardOnClose) {
-        await session.feed(_pcm(_remainder));
+      if (!_discardOnClose) {
+        try {
+          await (() async {
+            await _draining;
+            if (_remainder.isNotEmpty && !_discardOnClose) {
+              await session.feed(_pcm(_remainder));
+            }
+          })().timeout(session.info.config.interruptionDeadline);
+        } on TimeoutException {
+          const failure = TilawaException(
+            'operationTimeout',
+            'Capture could not drain accepted audio in time.',
+          );
+          _interrupt('processingStalled', failure);
+          throw failure;
+        }
       }
       _remainder = Uint8List(0);
       _stateTo(TilawaCaptureState.idle);
@@ -261,41 +287,47 @@ final class TilawaMicrophone with WidgetsBindingObserver {
   void _interrupt(String reason, Object? error) {
     if (_interruptionPending || _state == TilawaCaptureState.disposed) return;
     _interruptionPending = true;
-    unawaited(
-      (() async {
+    // Continuity is already broken. Discard unsubmitted capture and start the
+    // session deadline before awaiting native shutdown or a stalled feed.
+    _discardOnClose = true;
+    _chunks.clear();
+    _remainder = Uint8List(0);
+    final ending = session.interrupt(TilawaInterruption(reason));
+    ending.ignore();
+    _interrupting = (() async {
+      try {
+        if (error != null && !_errors.isClosed) {
+          _errors.add(
+            error is TilawaException
+                ? error
+                : TilawaException('captureFailed', '$error'),
+          );
+        }
         try {
-          if (error != null && !_errors.isClosed) {
-            _errors.add(
-              error is TilawaException
-                  ? error
-                  : TilawaException('captureFailed', '$error'),
-            );
-          }
-          try {
-            await stopCapture();
-          } catch (stopError) {
-            if (!_errors.isClosed) {
-              _errors.add(
-                stopError is TilawaException
-                    ? stopError
-                    : TilawaException('captureFailed', '$stopError'),
-              );
-            }
-          }
-          await session.interrupt(TilawaInterruption(reason));
-          if (_disposing == null) _stateTo(TilawaCaptureState.interrupted);
-        } catch (failure) {
+          await stopCapture();
+        } catch (stopError) {
           if (!_errors.isClosed) {
             _errors.add(
-              failure is TilawaException
-                  ? failure
-                  : TilawaException('captureFailed', '$failure'),
+              stopError is TilawaException
+                  ? stopError
+                  : TilawaException('captureFailed', '$stopError'),
             );
           }
-          if (_disposing == null) _stateTo(TilawaCaptureState.failed);
         }
-      })(),
-    );
+        await ending;
+        if (_disposing == null) _stateTo(TilawaCaptureState.interrupted);
+      } catch (failure) {
+        if (!_errors.isClosed) {
+          _errors.add(
+            failure is TilawaException
+                ? failure
+                : TilawaException('captureFailed', '$failure'),
+          );
+        }
+        if (_disposing == null) _stateTo(TilawaCaptureState.failed);
+      }
+    })().whenComplete(() => _interrupting = null);
+    unawaited(_interrupting);
   }
 
   @override
@@ -308,8 +340,10 @@ final class TilawaMicrophone with WidgetsBindingObserver {
 
   Future<void> dispose() {
     if (_disposing != null) return _disposing!;
+    _discardOnClose = true;
+    _chunks.clear();
+    _remainder = Uint8List(0);
     _disposing = (() async {
-      captureBindings[session] = null;
       WidgetsBinding.instance.removeObserver(this);
       try {
         await stopCapture();
@@ -317,6 +351,9 @@ final class TilawaMicrophone with WidgetsBindingObserver {
         await _audio?.cancel();
         await _recordState?.cancel();
         await _recorder.dispose();
+        if (identical(captureBindings[session], _binding)) {
+          captureBindings[session] = null;
+        }
         _chunks.clear();
         _remainder = Uint8List(0);
         _stateTo(TilawaCaptureState.disposed);

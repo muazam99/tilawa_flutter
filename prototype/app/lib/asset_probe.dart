@@ -274,12 +274,107 @@ Future<({TilawaAssetStore store, TilawaPreparedAssets assets})> runAssetProbe(
   return (store: store, assets: assets);
 }
 
+Future<void> runResponseRecoveryProbe(
+  Directory support,
+  AssetProbeLog log,
+) async {
+  final base = TilawaAssetManifest.zipformerV1();
+  final license = base.file('NPL-1.2.txt');
+  TilawaAssetManifest fixture(String id) => TilawaAssetManifest(
+    id: 'private-response-$id',
+    engineId: base.engineId,
+    engineVersion: base.engineVersion,
+    upstreamCommit: base.upstreamCommit,
+    segmentationId: base.segmentationId,
+    ioSchema: base.ioSchema,
+    files: [
+      for (final file in base.files)
+        TilawaAssetFile(
+          name: file.name,
+          bytes: license.bytes,
+          sha256: license.sha256,
+          license: 'Storage-only NPL license text, never recognition input',
+          downloadUri: license.downloadUri,
+        ),
+    ],
+  );
+  final store = TilawaAssetStore(
+    Directory('${support.path}/tilawa-response-recovery'),
+  );
+  for (final mode in ['retry', 'exhausted', 'cancel']) {
+    final manifest = fixture(mode);
+    await store.delete(manifest);
+    final network = _ProbeNetwork(failBodies: mode == 'exhausted' ? 99 : 1);
+    final install = network.run(() => store.download(manifest, retries: 1));
+    final closed = install.progress.drain<void>();
+    final progress = <TilawaAssetProgress>[];
+    final sub = install.progress.listen((event) {
+      progress.add(event);
+      if (mode == 'cancel' && event.attempt == 1) install.cancel();
+    });
+    if (mode == 'retry') {
+      await install.completed;
+      requireAssetProbe(
+        network.requests == 5 && progress.any((e) => e.attempt == 2),
+        'Body retry did not restart correctly',
+      );
+      requireAssetProbe(
+        await store.available(manifest) != null,
+        'Body retry failed verification',
+      );
+    } else {
+      await expectAssetError(
+        mode == 'cancel' ? 'assetCancelled' : 'assetInstallationFailed',
+        () async {
+          await install.completed;
+        },
+      );
+      requireAssetProbe(
+        await store.available(manifest) == null,
+        'Failed body activated partial files',
+      );
+      requireAssetProbe(
+        network.requests == (mode == 'cancel' ? 1 : 2),
+        'Body retry exceeded budget',
+      );
+    }
+    await closed;
+    await sub.cancel();
+    requireAssetProbe(
+      progress.any(
+        (e) =>
+            e.attempt == 1 &&
+            e.receivedBytes > 0 &&
+            e.receivedBytes < e.expectedBytes,
+      ),
+      'Fault did not follow partial bytes',
+    );
+    requireAssetProbe(
+      await store.cleanupInterruptedInstallations() == 0,
+      'Body recovery left stale staging',
+    );
+    if (mode != 'retry') {
+      requireAssetProbe(
+        await store.available(fixture('retry')) != null,
+        'Body fault damaged prior version',
+      );
+    }
+    log(
+      'RECOVERY_DOWNLOAD mode=$mode requests=${network.requests} partialBytes=true stagingClean=true previousVersionPreserved=true',
+    );
+  }
+}
+
 // Narrow private transport hook. Real HTTPS/redirects/TLS remain Dart-owned.
-// Only initial request failures and a paused body are injected.
 final class _ProbeNetwork extends HttpOverrides {
-  _ProbeNetwork({this.failRequests = 0, this.gateFirstResponse = false});
+  _ProbeNetwork({
+    this.failRequests = 0,
+    this.gateFirstResponse = false,
+    this.failBodies = 0,
+  });
   final int failRequests;
   final bool gateFirstResponse;
+  final int failBodies;
   int requests = 0;
   T run<T>(T Function() action) =>
       HttpOverrides.runWithHttpOverrides(action, this);
@@ -301,8 +396,12 @@ final class _ProbeClient implements HttpClient {
       throw const SocketException('Private probe transient request failure');
     }
     final request = await inner.getUrl(uri);
-    return network.gateFirstResponse && network.requests == 1
-        ? _ProbeRequest(request)
+    return (network.gateFirstResponse && network.requests == 1) ||
+            network.requests <= network.failBodies
+        ? _ProbeRequest(
+            request,
+            failBody: network.requests <= network.failBodies,
+          )
         : request;
   }
 
@@ -313,27 +412,34 @@ final class _ProbeClient implements HttpClient {
 }
 
 final class _ProbeRequest implements HttpClientRequest {
-  _ProbeRequest(this.inner);
+  _ProbeRequest(this.inner, {this.failBody = false});
   final HttpClientRequest inner;
+  final bool failBody;
   @override
   HttpHeaders get headers => inner.headers;
   @override
   Future<HttpClientResponse> close() async =>
-      _ProbeResponse(await inner.close());
+      _ProbeResponse(await inner.close(), failBody: failBody);
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 final class _ProbeResponse extends Stream<List<int>>
     implements HttpClientResponse {
-  _ProbeResponse(this.inner);
+  _ProbeResponse(this.inner, {this.failBody = false});
   final HttpClientResponse inner;
+  final bool failBody;
   @override
   int get statusCode => inner.statusCode;
   @override
   int get contentLength => inner.contentLength;
   Stream<List<int>> _body() async* {
     await for (final chunk in inner) {
+      if (failBody) {
+        yield chunk.sublist(0, chunk.length > 1 ? chunk.length ~/ 2 : 1);
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        throw const SocketException('Private mid-response disconnection');
+      }
       yield chunk;
       // A cancellable stalled response, also used for the process-kill seed.
       await Future<void>.delayed(const Duration(seconds: 2));

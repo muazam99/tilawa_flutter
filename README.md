@@ -1,6 +1,8 @@
 # tilawa_flutter (development SDK)
 
-Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. Phase 4 and Phase 5A/5B Android checkpoints are complete; platform/resource and deferred Phase 3 fault gates remain open. This is not a published package; author-code licensing and final runtime selection remain under review.
+Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. Phase 4 and Phase 5A/5B Android checkpoints are complete; Phase5C Android recovery evidence is recorded in PHASE3.md. Physical route/renderer/native cleanup and platform/resource gates remain open. This is not a published package; author-code licensing and final runtime selection remain under review.
+
+Phase5D Android measurements are in prototype/FEASIBILITY.md: five-minute paced input and foreground capture completed, broader fixtures exposed mixed-passage omissions, and recreation produced a material renderer-memory spike. These are device-specific development checkpoints, not full-Quran accuracy, leak-free cleanup or final runtime/resource acceptance.
 
 Android evidence is recorded separately for the private Phase 1 bridge, Phase 3 public facade and Phase 5 standalone example. These checks do not establish iOS support or close deferred fault/resource gates. See [PLAN.md](PLAN.md), [API_CONTRACT.md](API_CONTRACT.md), [PHASE3.md](PHASE3.md) and [example evidence](example/README.md).
 
@@ -101,7 +103,7 @@ await captureErrors.cancel();
 
 Capture uses pinned record plugin PCM16 delivery, converted to normalized float32, with 480 ms chunks and a bounded producer queue. Android source requests this client format through AudioRecord; iOS source converts hardware input through AVAudioConverter. The helper does not claim it measured the physical hardware rate. Its hardwareFormatVerified getter is false. Unsupported/failed native capture produces explicit errors, not arbitrary raw-PCM rate assumptions.
 
-Foreground-only. Audio-focus pause/disconnection or app backgrounding stops capture and requests a session interruption; resume is explicit. No automatic microphone start, background recognition or recording upload. Route-change and denial/recovery behaviour needs device validation. Session disposal also disposes its attached helper. Dispose the helper before replacing it; only one helper can attach to a session.
+Foreground-only. Audio-focus pause/disconnection or app backgrounding stops capture and requests a session interruption; resume is explicit. Continuity-breaking interruptions and disposal discard capture not yet submitted to the session. Interruption starts the session deadline before awaiting capture drain. Normal stop drains queued capture including the partial final chunk, bounded by interruptionDeadline; expiry reports operationTimeout and requests processingStalled interruption. This does not preempt native OS calls or guarantee native recorder teardown. No automatic microphone start, background recognition or recording upload. Android denial/background/audio-focus recovery passed; physical route/disconnection remains unverified. Session disposal also disposes its attached helper. Dispose and await helper cleanup before replacing it; only one helper can attach to a ready/accepting session, and the attachment remains reserved until recorder cleanup succeeds.
 
 ## Metadata and analytics
 
@@ -112,6 +114,8 @@ Metadata mismatches and resolver failures produce nonfatal warnings and rejected
 Consumers replace word-progress and transcript snapshots rather than unioning/appending them. Capture the event run ID, selected ayah and a request generation before asynchronous metadata lookup, then check them again before updating the display. Reset clears presentation state, and a lookup started in an older run must not overwrite the new one. The standalone consumer in `example/lib/demo_controller.dart` demonstrates these guards, mapped Arabic words, references and optional live input. Its small 112/113 fixture is developer-supplied, not a default SDK Quran edition. There is no SDK highlight widget, page completion or analytics UI.
 
 Scores are preserved engine values, not probabilities; accumulated scores may exceed 1. Repeated progress does not mean new words read, verse suppression prevents a complete repeated-reading history, and fallback verse matches do not imply actual word coverage. See API_CONTRACT section 6 for pinned source details.
+
+At the pinned baseline, stop fallback runs only when no verse has emitted. A short passage recognized by fallback alone can be omitted when later live matches occur in the same run. Android mixed-passage checks also omitted early ayahs after a tracked passage change. Finalization complete means the runtime drained/flushed successfully, not that the final sequence contains everything recited. No missing references or reading occurrences are synthesized.
 
 Lost/relocated observations are opt-in diagnostics at this pinned baseline, not a guaranteed typed transition stream. A lost diagnostic can coexist with sampled tracking state `tracking`; retain that distinction instead of inventing a complete loss/recovery history. The Android repetition probe produced additional progress with no new verse matches, then located a different surah in the same run. See PLAN section 13 for measured outcomes and limitations.
 

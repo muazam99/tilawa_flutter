@@ -64,7 +64,38 @@ Release build with `PROBE_CONTROLS=true` and `PROBE_MIC=true`, same physical pho
 
 ## Next bounded Phase 3 work
 
-1. Asset lifecycle baseline is validated above. Mid-response retry and additional disk/network faults may be extended if needed; do not infer cross-process locking or byte-range resume.
-2. New helper live/stop/disposal/denial/background checks passed. Next: capture-side overload/start-stop races, native delivered-format/route/audio-focus/disconnection recovery, and longer sustained resource checks. Keep prior Phase 1 and new-helper evidence distinct.
-3. Facade control/overrun/deadline diagnostics passed with the private adapter. Native bridge loss, capture overload/route races and failed cleanup remain separate platform checks. No authored unit-test suite added.
+1. Asset lifecycle and mid-response retry/exhaustion/cancel are validated below. Additional disk/network faults remain conditional; do not infer cross-process locking or byte-range resume.
+2. Helper capture overload/stalled Stop/control races, native delivered format/audio focus and standalone example denial/background recovery passed below. Next: physical input routes/disconnection and longer sustained resource checks.
+3. Controlled bridge/late output/cleanup failures and actual WebView JavaScript bridge fault passed below. Renderer-process death/native teardown failure remain separate checks. No authored unit-test suite added.
 4. Network-disabled public facade passed on Android. iPhone remains unavailable; agree resource budgets before permanent runtime selection. Owner later approved committing this checkpoint and proceeding to Phase 4; these remaining Phase 3 gates are deferred, not erased. Phase 5 remains separate.
+
+## Phase 5C Android recovery checkpoint (2026-10-13)
+
+Owner authorized implementation, release builds and control of the connected Infinix X678B/Android14 via ADB/scrcpy. iPhone deferred for now. Baseline73ba68e/master; this recovery work is included in the subsequently owner-requested local5C/Android5D checkpoint. Private diagnostics extend existing opt-in probes, not a new unit-test suite. No runtime bundle/model pins changed.
+
+### Demonstrated defect and repair
+
+Real microphone input feeding a controlled stalled adapter filled a one-chunk producer queue. audioOverrun stopped native AudioRecord, but helper remained stopping/session accepting after2000ms with a400ms interruption deadline: helper awaited the stalled drain before requesting session interruption.
+
+The helper now closes capture continuity, discards unsubmitted buffered PCM and starts session interruption before awaiting shutdown. Normal Stop bounds draining plus the final partial chunk by interruptionDeadline; expiry reports operationTimeout/processingStalled and requests interruption. Disposal discards unsubmitted capture rather than waiting for stalled inference. Helper bindings remain occupied until actual recorder cleanup succeeds; attachment requires a ready/accepting session, and pending interruption blocks Start. Normal successful Stop still drains all submitted capture before session finalization. These deadlines do not establish native OS-call preemption or guaranteed native recorder cleanup.
+
+### Observed results
+
+| Check | Evidence |
+|---|---|
+| Capture overload/stall | Real native mic plus stalled adapter: audioOverrun, incomplete terminal result/null sequence within bounded path; configured400ms interruption. Late underlying feed released only for diagnostic cleanup. |
+| Stop during stalled capture | operationTimeout then incomplete interruption; active helper/session disposal returned while feed still stalled. |
+| Rapid controls | Five immediate concurrent Start/Stop cycles, identical coalesced Futures, idle capture after each. Helper replacement rejected during cleanup, accepted afterwards; Dispose during Start interrupted it; reset/new-helper restart and active-session disposal passed. |
+| Controlled runtime failure | Public adapter seam emitted bridge loss during stalled feed; feed/reset rejected bridgeDisconnected, late transcript suppressed. |
+| Controlled cleanup timeout/failure | disposalFailed; deletion blocked by assetsInUse while cleanup pending or failed. Pending cleanup eventually completed; intentionally failed lease persisted until probe process exit. This is adapter-seam evidence, not native teardown failure evidence. |
+| Mid-response download retry | Real HTTPS license-text storage fixtures, partial body then injected SocketException: fresh attempt2,5 requests across4files, full size/hash verification and reusable install. Fixtures never entered recognition. |
+| Exhaustion/cancel | Exhaustion2 requests; cancellation1 request after partial bytes. No activation/stale stage, older verified fixture version preserved. No HTTP-range resume or additional cross-process guarantee. |
+| Native delivered format | Android activeRecordingConfigurations: client/device16000Hz,1channel,encoding2(PCM16), built-in mic type15, not silenced. Does not claim universal physical hardware format; hardwareFormatVerified remains false. |
+| Real Android focus loss | Private competing native transient-exclusive focus request: audioFocusLoss, complete interruption, no capture autorestart on focus release; explicit dispose-helper/reset/new-helper Start/Stop completed. |
+| Actual WebView JS bridge fault | Private CDP hook held a feed reply and posted an error through the real TilawaSdk channel. Pending feed/reset rejected bridgeDisconnected; later real-channel transcript fenced; disposal/fresh local runtime and silence stop completed. Not renderer-process crash evidence. |
+| Normal runtime regression | Public WebView adapter recognized113:1–5,5matches/49progress,388670samples, same repeated-stop/event result. Reset/one-second silence/empty sequence/disposal/reverified local reuse passed. Online replay, not a new network-disabled claim. |
+| Standalone example | Denial/regrant retry, background interruption307200processed/submitted samples/no autorestart, explicit Reset/Start/Stop288000samples complete, disposal/local reopen. Ambient input yielded empty sequences; this does not replace owner live-highlight evidence. |
+
+Root/probe/example analyzers clean; arm64 release builds passed. Combined recovery/control/replay APK77.1MB; actual-bridge-only diagnostic APK76.9MB; standalone example19.0MB. Latest private app was force-stopped, temporary CDP forward removed/debugging disabled. Standalone helper/session disposed, assets retained. Example permission restored to its original granted/USER_SET flags; connectivity remained airplane0/Wi-Fi1/data1. No recorded audio stored/uploaded.
+
+Remaining5C gates: available physical wired/Bluetooth route changes/disconnection (none connected), renderer-process loss and native teardown failure beyond the controlled adapter. Broader passages/sustained resources/budgets/runtime acceptance and intended-platform iPhone validation belong to5D; iPhone deferred, not verified or dropped. See PLAN§16 and prototype/README for reproduction.

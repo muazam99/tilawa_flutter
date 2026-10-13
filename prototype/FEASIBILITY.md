@@ -154,3 +154,66 @@ Four sequential ADB memory pairs during late capture and after stop: app PSS 342
 - Agree startup/responsiveness/memory budgets with owner using measured results. Adjacent recreation PSS sampling showed a large transient renderer footprint; no architecture approval or leak-free claim.
 - Static arm64 ZIP/ELF alignment checked; 16 KB-page runtime and other architectures unverified.
 - Mac/Xcode and physical iPhone unavailable. Both-platform Phase 1 evidence remains partial. Owner subsequently accepted the Android checkpoint and approved Phase 2 API design; deferred checks remain release gates and architecture stays provisional. See ../API_CONTRACT.md for the review draft.
+
+## Phase 5D Android broader-passage checkpoint (2026-10-13)
+
+Owner authorized Android broader/sustained/resource validation; iPhone deferred for now. Private release/arm64 performance_probe.dart on Infinix X678B/Android14, Flutter3.35.1/Dart3.9, unchanged pinned model/core/runtime. New benchmark downloads verified against immutable Git blobs at2f2617460dc4a6b967e0cc49fa04804bbf22ec69, with size/SHA-256/provenance/expected alternatives in ignored prototype/app/assets/runtime/validation_samples.json. Audio/receipts remain private; redistribution terms unresolved. Public display fixture remains112/113 only.
+
+The preliminary run started while the phone was dozing; its timings are excluded. Restarted unlocked/foreground after adding interactive/keyguard/lifecycle guards. Analyzer clean;89.5MB private arm64 APK includes additional benchmark inputs, not SDK archive or public-example size. Private decoder/resampler prepares explicit mono16kfloat32 before public feed. Completed foreground results:
+
+| Case | Input seconds | Observed canonical result | Progress / limitation |
+|---|---:|---|---|
+| Beginning, ref_001002 |5.534|1:2|0progress; stop fallback only, score1 not word-coverage proof |
+| Long ayah, ref_002255 |51.918|2:255|99progress |
+| Middle, multi_036_001_005 |28.600|36:1–5|31progress |
+| Middle, multi_059_022_024 |61.308|59:22–24|110progress; sequence score0.98 |
+| End, multi_114_001_006 |41.469|114:1–6|56progress |
+| Second-source retasy_004 |4.400|114:3|0progress; stop fallback only |
+| Shared/ambiguous phrase, user_imran_23 |11.563|3:23|8progress, score0.65; pinned manifest also accepts4:44 |
+| Existing multi_113_001_005 |24.292|113:1–5|49progress |
+| Mid-ayah start, final60% of2:255 clip |31.151|2:255|63progress; score0.54, no full-ayah coverage implication |
+| Attenuated/noisy113 fixture |24.292|113:1–5|48progress;0.35gain plus seeded uniform noise amplitude0.025, not general noise-robustness evidence |
+| Three-second silence |3.000|Empty|No match/progress |
+| Repeat1:2,1s silence, switch113 |36.359|113:1–5 only|Expected1:2 then113:1–5 not met;38progress, locateFailed diagnostic. Earlier fallback-only passage was not retained in the final sequence |
+| Repeat tracked2:255,1s silence, switch113 |129.128|2:255,113:3–5|Expected2:255 then113:1–5 not met;232progress,2located/1idle diagnostics; one2:255 entry despite repetition, first two113ayahs omitted |
+
+All runs finalized completely and processed their submitted PCM. These are eight clips and five derived functionality cases, not an accuracy percentage. Expectations come from the pinned upstream manifest, not independent expert annotation. Correct references can arrive only at final fallback with no live highlighting. Final sequence is not exhaustive reading history, and recognition observations do not certify correctness or complete coverage. Both compound cases are retained as incomplete recognition outcomes, not converted into successful full-passage claims. The tracked2:255 case ran separately in a fresh process,63.581s processing including stop for129.128s input.
+
+Pinned source explains the fallback-only caveat: session.ts574..604 invokes fallback at stop, gated by emission.ts136..138 requiring zero emitted verses. Once113matches have emitted, stop cannot recover an earlier fallback-only1:2. Missing113:1–2 in the separately tracked switch case is an observed recognition/acquisition limitation; no wrapper result or history is fabricated to fill it. Consumers that know a passage boundary can explicitly reset, but reset is not an accuracy guarantee.
+
+Foreground fixture processing elapsed3.658s/5.534s input (including stop),25.908s/51.918s long ayah,30.468s/61.308s59passage and12.483s/24.292s113fixture. These unpaced complete-operation timings are not sustained throughput or acoustic word-to-highlight latency. Sustained/resource measurement completed separately below; final runtime/budget acceptance remains pending.
+
+Raw evidence is in ignored prototype/.cache/validation-evidence/broader-foreground-events.log and broader-foreground-memory.jsonl. Private benchmark decoding creates temporary WebViews and additional allocations, so its memory samples are workload/probe measurements, not isolated SDK footprint. See prototype/README for reproduction and later resource checkpoint.
+
+## Phase 5D Android sustained/resource checkpoint (2026-10-13)
+
+Fresh private-app process, unlocked foreground throughout, USB charging, physical Infinix X678B/Android14, WebView153.0.8010.36, unchanged local WebView/WASM runtime. Standalone asset availability/integrity verification2.844s. First session.open6.951s includes another asset verification; adapter/runtime initialization portion4.931s. These are verified local reuse/fresh-process measurements, not fresh-download/first-install startup or cold-storage-cache guarantees.
+
+| Measurement | Paced recitation input | Foreground microphone |
+|---|---:|---:|
+| Workload | Repeated pinned113fixture, bounded480ms sequential producer | Real native capture; ambient/user audio not stored or referenced in logs |
+| Duration |300.000s input;301.132s elapsed including final flush|300.115s capture wall time;299.920s PCM submitted |
+| Processed / submitted samples |4,800,000 /4,800,000|4,798,720 /4,798,720 |
+| Feed requests |625|625 |
+| Feed request mean / p95 / max |226.757 /247 /352ms|221.834 /240 /304ms |
+| Final inference flush |826ms|2304ms after capture stop/drain |
+| Finalization |Complete|Complete |
+| Continuity/backlog evidence |Maximum completion lag354ms; it did not grow across the five-minute schedule|0capture errors/overruns;100ms-sampled session outstanding high-water7680samples (one480ms chunk) |
+
+The external producer awaits feeds and does not queue unbounded input. Microphone's sampled submitted-minus-processed position is not its private producer-queue high-water and can miss brief transients; absence of capture errors plus equal final sample accounting is the observed continuity evidence. PCM timing covers data accepted by Dart, not every physical acoustic sample up to the stop boundary. Immediate MIC_BEGIN format snapshot was empty; use the separate5C delivered-format evidence, not an inferred fresh hardware measurement. Feed times are whole adapter requests, not CPU utilization or acoustic word-to-highlight latency. This ambient/live capture is sustained processing/lifecycle evidence, not independently verified recitation accuracy. Five minutes is a diagnostic duration, not an SDK limit.
+
+Five subsequent runtime recreation/reset/disposal cycles completed. Session.open5.806..6.522s, adapter initialization3.566..4.480s; each session processed silence, stopped, reset, processed again and disposed. Native app-PSS after final15-second settling sample244,256KiB. No unbounded queue growth or capture failure observed on this device; this is not a universal performance or leak-free claim.
+
+### Resource tradeoff and acceptance
+
+Scoped ADB service records associated renderer PID24735 with private app16762. Sequential30-second samples, separate from native app samples:
+
+- Paced workload app PSS271,931..306,104KiB (about266..299MiB); renderer339,400..387,181KiB (about331..378MiB).
+- Mic workload app PSS269,141..283,292KiB (about263..277MiB); renderer378,362..391,647KiB (about369..382MiB). Observed swap-PSS reached41,888KiB app/82,994KiB renderer (about41/81MiB), so resident PSS alone understates retained footprint.
+- Recreation sample at09:12:58 local time: renderer PSS853,740KiB (about834MiB), RSS932,820KiB. A later recreation sample fell to445,393KiB PSS. This is the highest sampled value, not a true peak or synchronized app+renderer total.
+- Later idle check around09:26..09:27, roughly13minutes after completion: app242,459KiB PSS/34,841KiB swap; renderer113,357KiB PSS/45,007KiB swap. The renderer remained alive after SDK disposal; its delayed drop is not proof of immediate destruction or guaranteed reclamation.
+- Battery temperature samples34.0°C during the sustained run, USB charging. No battery-consumption assessment or thermal-throttling guarantee follows.
+
+These measurements include the private Flutter UI/fixture decoder and app/renderer resources, not isolated incremental SDK overhead. Sustained processing keeps up here, but the material recreation footprint remains an explicit runtime/resource acceptance decision. No memory budget has been agreed and the bridge architecture remains provisional. A change of runtime needs separate bounded implementation/revalidation; this checkpoint does not silently choose an alternative.
+
+Raw ignored evidence: resources-foreground-events.log/resources-foreground-memory.jsonl and tracked-switch-events.log/tracked-switch-memory.jsonl under prototype/.cache/validation-evidence. Analyzer clean and89.5MB arm64 release builds for broader/resources/switch-only passed. Latest private installed build is switch-only, force-stopped after checks. Public example still19.0MB with retained downloaded assets and microphone/session disposed. No production SDK runtime/model/corpus changes in5D or authored unit-test suite. Owner subsequently requested a local5C/Android5D progress commit; no push/dryrun/publication or Qiyam integration. iPhone deferred for now; physical routes/renderer/native teardown and16KB-device runtime gates remain open. Final intended-platform/resource/recognition acceptance is not complete.
