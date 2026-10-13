@@ -13,6 +13,8 @@ import 'package:tilawa_flutter/tilawa_flutter.dart';
 // Private instrumentation wraps the real implementation, never example code.
 // ignore: implementation_imports
 import 'package:tilawa_flutter/src/runtime/webview_adapter.dart';
+// ignore: depend_on_referenced_packages
+import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'audio_fixture.dart';
 
@@ -76,6 +78,9 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
     try {
       log('BEGIN', {'mode': mode, 'upstream': tilawaUpstreamCommit});
       await requireForeground();
+      if (const bool.fromEnvironment('PROBE_HEAP')) {
+        await native.invokeMethod<void>('webDebugging', true);
+      }
       await sample('before-assets');
       final support = await getApplicationSupportDirectory();
       final store = TilawaAssetStore(
@@ -97,6 +102,10 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
         await resources(assets);
       } else if (mode == 'switch-only') {
         await switching(assets);
+      } else if (mode == 'trace-switch') {
+        await switching(assets, trace: true);
+      } else if (mode == 'recreation-only') {
+        await recreation(assets);
       } else {
         throw StateError('Unknown validation mode');
       }
@@ -106,6 +115,9 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
       debugPrint('$stack');
     } finally {
       await session?.dispose();
+      if (const bool.fromEnvironment('PROBE_HEAP')) {
+        await native.invokeMethod<void>('webDebugging', false);
+      }
       if (mounted) setState(() => running = false);
     }
   }
@@ -182,7 +194,10 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
     session = null;
   }
 
-  Future<void> switching(TilawaPreparedAssets assets) async {
+  Future<void> switching(
+    TilawaPreparedAssets assets, {
+    bool trace = false,
+  }) async {
     final first = await load('assets/runtime/validation_ref_002255.audio');
     final second = await load(
       'assets/runtime/validation_multi_113_001_005.audio',
@@ -198,6 +213,7 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
     session = await TilawaSession.open(
       assets: assets,
       config: const TilawaRecognitionConfig(diagnostics: true),
+      adapterFactory: trace ? _MeasuredFactory(log) : null,
     );
     await passage('repeat-tracked-002255-silence-switch-falaq', combined, [
       [
@@ -220,9 +236,17 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
     final candidates = <String>{};
     var fallbackMatches = 0;
     final diagnostics = <String, int>{};
+    final matchedRefs = <String>[];
+    final progressRefs = <String>{};
     final events = session!.events.listen((event) {
-      if (event is TilawaVerseMatched) matches++;
-      if (event is TilawaWordProgress) progress++;
+      if (event is TilawaVerseMatched) {
+        matches++;
+        matchedRefs.add('${event.ayah}');
+      }
+      if (event is TilawaWordProgress) {
+        progress++;
+        progressRefs.add('${event.ayah}');
+      }
       if (event is TilawaVerseCandidates) {
         for (final candidate in event.candidates) {
           candidates.add('${candidate.ayah}');
@@ -269,13 +293,75 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
         (refs) => jsonEncode(refs) == jsonEncode(actual),
       ),
       'matches': matches,
+      'matchedRefs': matchedRefs,
       'progress': progress,
+      'progressRefs': progressRefs.toList(),
       'candidates': candidates.toList(),
       'diagnosticFallbackMentions': fallbackMatches,
       'diagnostics': diagnostics,
       'finalization': result.finalization.name,
       'processedSamples': result.processedSamples,
     });
+  }
+
+  Future<void> recreation(TilawaPreparedAssets assets) async {
+    // No fixture decoder, microphone, or custom adapter in this mode.
+    await sample('recreation-baseline');
+    await Future<void>.delayed(const Duration(seconds: 5));
+    for (var cycle = 1; cycle <= 3 && !stopRequested; cycle++) {
+      await requireForeground();
+      await sample('isolated-$cycle-before-open');
+      final open = Stopwatch()..start();
+      const destroy = bool.fromEnvironment('PROBE_DESTROY_WEBVIEW');
+      session = await TilawaSession.open(
+        assets: assets,
+        adapterFactory: destroy
+            ? TilawaWebViewAdapterFactory(
+                disposeController: (controller) async {
+                  final platform =
+                      controller.platform as AndroidWebViewController;
+                  await native.invokeMethod<void>(
+                    'destroyWebView',
+                    platform.webViewIdentifier,
+                  );
+                },
+              )
+            : null,
+      );
+      log('OPEN', {'cycle': cycle, 'elapsedMs': open.elapsedMilliseconds});
+      await sample('isolated-$cycle-open');
+      await Future<void>.delayed(const Duration(seconds: 5));
+      for (var offset = 0; offset < 32000 && !stopRequested; offset += 7680) {
+        await session!.feed(Float32List(min(7680, 32000 - offset)));
+      }
+      final result = await session!.stop();
+      log('ISOLATED_STOP', {
+        'cycle': cycle,
+        'submittedSamples': result.submittedSamples,
+        'processedSamples': result.processedSamples,
+        'finalization': result.finalization.name,
+        'sequence': result.engineSequence?.map((v) => '${v.ayah}').toList(),
+      });
+      await sample('isolated-$cycle-active');
+      await Future<void>.delayed(const Duration(seconds: 5));
+      final disposal = Stopwatch()..start();
+      await session!.dispose();
+      session = null;
+      log('ISOLATED_DISPOSE', {
+        'cycle': cycle,
+        'elapsedMs': disposal.elapsedMilliseconds,
+      });
+      await sample('isolated-$cycle-disposed');
+      await Future<void>.delayed(const Duration(seconds: 5));
+    }
+    var previous = 0;
+    for (final seconds in [0, 15, 30, 60, 90]) {
+      if (stopRequested) break;
+      await Future<void>.delayed(Duration(seconds: seconds - previous));
+      await requireForeground();
+      await sample('isolated-settle-$seconds');
+      previous = seconds;
+    }
   }
 
   Future<void> resources(TilawaPreparedAssets assets) async {
@@ -456,7 +542,7 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
         const Padding(
           padding: EdgeInsets.all(8),
           child: Text(
-            'Opt-in validation. Resources mode runs five minutes paced input, then five minutes foreground microphone. Keep foregrounded. No live audio/transcript is saved.',
+            'Opt-in validation. Recreation-only uses three silence cycles, no microphone or decoder. Resources mode starts microphone after paced input. Keep unlocked and foregrounded.',
           ),
         ),
         ElevatedButton(
@@ -484,6 +570,8 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
 }
 
 final class _MeasuredFactory implements TilawaEngineAdapterFactory {
+  _MeasuredFactory([this.trace]);
+  final void Function(String, Map<String, Object?>)? trace;
   int initializeMs = 0;
   final timings = <int>[];
   Map<String, Object?> summary() {
@@ -507,20 +595,39 @@ final class _MeasuredFactory implements TilawaEngineAdapterFactory {
     TilawaObservationSink sink,
   ) async {
     final clock = Stopwatch()..start();
+    final progress = <String, int>{};
     final inner = await const TilawaWebViewAdapterFactory().create(
       assets,
       config,
-      sink,
+      (event) {
+        if (trace != null) {
+          if (event['type'] == 'word_progress') {
+            final ref = '${event['surah']}:${event['ayah']}';
+            progress.update(ref, (count) => count + 1, ifAbsent: () => 1);
+            if (progress[ref] == 1) trace!('RAW_FIRST_PROGRESS', event);
+          } else if ([
+            'debug',
+            'verse_match',
+            'verse_candidate',
+            'final_sequence',
+          ].contains(event['type'])) {
+            trace!('RAW_EVENT', event);
+          }
+        }
+        sink(event);
+      },
     );
     initializeMs = clock.elapsedMilliseconds;
-    return _MeasuredAdapter(inner, timings);
+    return _MeasuredAdapter(inner, timings, trace, progress);
   }
 }
 
 final class _MeasuredAdapter implements TilawaEngineAdapter {
-  _MeasuredAdapter(this.inner, this.timings);
+  _MeasuredAdapter(this.inner, this.timings, this.trace, this.progress);
   final TilawaEngineAdapter inner;
   final List<int> timings;
+  final void Function(String, Map<String, Object?>)? trace;
+  final Map<String, int> progress;
   @override
   String get id => inner.id;
   @override
@@ -538,7 +645,16 @@ final class _MeasuredAdapter implements TilawaEngineAdapter {
   }
 
   @override
-  Future<TilawaEngineSnapshot> stop() => inner.stop();
+  Future<TilawaEngineSnapshot> stop() async {
+    final result = await inner.stop();
+    trace?.call('RAW_STOP', {
+      'sequence': result.sequence?.map((v) => '${v.ayah}').toList(),
+      'consumedSamples': result.consumedSamples,
+      'progressByRef': progress,
+    });
+    return result;
+  }
+
   @override
   Future<TilawaEngineSnapshot> reset() => inner.reset();
   @override

@@ -4,8 +4,8 @@
   "artifacts": [
     {
       "name": "bridge.js",
-      "bytes": 727703,
-      "sha256": "0a0ec1519571c0173ea7838b7bd60754aac645686ca49aeef0c87cc0a1080cfe"
+      "bytes": 727978,
+      "sha256": "693a1b94c9fc8cb60d1c62b60842740a6acf6f64cf87fb2298d2ff7589e15ff4"
     },
     {
       "name": "index.html",

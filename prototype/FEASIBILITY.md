@@ -185,7 +185,39 @@ Foreground fixture processing elapsed3.658s/5.534s input (including stop),25.908
 
 Raw evidence is in ignored prototype/.cache/validation-evidence/broader-foreground-events.log and broader-foreground-memory.jsonl. Private benchmark decoding creates temporary WebViews and additional allocations, so its memory samples are workload/probe measurements, not isolated SDK footprint. See prototype/README for reproduction and later resource checkpoint.
 
+## Bounded 5D acceptance follow-up (2026-10-13)
+
+Owner approved a focused follow-up, paused for clarification, then resumed. The completed broader/sustained suite was not repeated. Pinned core/model/runtime remain unchanged; only private probe/collector diagnostics changed. Physical Infinix X678B/Android14, foreground release/arm64, local verified assets.
+
+### Recognition attribution
+
+The saved1:2 compound result and pinned session.ts574..604/emission.ts136..138 establish the fallback policy limitation: once another verse emits, stop fallback cannot recover an earlier fallback-only passage. The saved tracked-switch log contained aggregate observations, so one targeted replay added adapter-boundary tracing, without modifying recognition or the bridge.
+
+That replay reproduced2:255,113:3–5. Raw events showed2:255 acquisition, later idle/lost, then candidate/located113:3; no113:1–2 word progress or matches. Raw final_sequence, adapter stop snapshot and public canonical result agreed. All2,066,046samples processed,232progress events, complete finalization. Progress briefly referenced2:256 with no match, illustrating that cursor/progress is not recognized reading history. This establishes an engine acquisition/emission omission for this case, not references dropped by the Dart canonical-result wrapper; it does not isolate the underlying acoustic/search cause or approve recognition quality.
+
+### Decoder-free recreation
+
+Separate fresh process using default public TilawaSession.open, no custom adapter, fixture decoding, loaded audio or microphone. Three sequential open/feed32,000silence samples/stop/dispose cycles,5second holds around checkpoints, then fixed90second settling. APK89.4MB still packages ignored benchmark assets but does not load/decode them in this mode. UI/native diagnostic overhead remains; this is not exact incremental SDK memory.
+
+- Asset reuse verification2.296s. Opens7.460/5.720/5.972s including asset verification. All three results complete,32,000submitted/processed each, empty sequences. Disposal returned in50/82/85ms; this is API completion, not renderer-process destruction.
+- Scoped service association: app PID7314, one renderer PID15497 throughout observed runtime samples. Five-second periodic plus checkpoint samples include individual timestamps; app/renderer samples remain sequential and are not a true peak.
+- Third recreation renderer PSS rose through743,554/838,760/1,086,086 to **1,092,906KiB (about1,067MiB or1.04GiB)**, RSS1,180,320KiB. Adjacent app PSS285,412KiB. Swap-PSS was small here (app137/renderer310KiB), unlike the earlier sustained microphone evidence.
+- Renderer fell to415,814KiB about1.3seconds after the highest sample, then413,626 after disposal. First low sample91,861KiB was about11.4seconds after final disposal; final90second-settle checkpoint91,383KiB PSS/311KiBswap. Renderer remained alive. App settled around281..283thousandKiB, versus pre-runtime baseline230,766KiB; retained app memory is not attributed entirely to SDK or proven leaked.
+
+**Assessment:** High recreation memory also occurs without fixture decoding or sustained capture. The earlier834MiB sample cannot be dismissed as decoder-only overhead. Later reclamation is observed, but allocation cause, worst-case bounds and low-memory behavior remain unresolved. No agreed budgets or final runtime acceptance. Recommend a separate bounded allocation/teardown investigation before finalizing5E; do not silently select native runtime, infer a leak, or repeatedly rerun the completed sustained suite. Recognition limitations still require owner acceptance or separately scoped engine work. iPhone remains deferred and other native/hardware gates remain open.
+
+Private ignored evidence: acceptance-tracked-switch-events.log/-memory.jsonl and acceptance-isolated-recreation-events.log/-memory.jsonl under prototype/.cache/validation-evidence. Probe Dart format/analyzer and collector Node syntax checks passed; both arm64 builds completed (recreation build logged a Kotlin daemon startup retry but succeeded). Latest recreation-only APK force-stopped after completion. No authored unit-test suite, root SDK/runtime changes, commit/push/publication or5E progression.
+
 ## Phase 5D Android sustained/resource checkpoint (2026-10-13)
+
+### Later stopped RAM-investigation checkpoint (2026-10-13)
+
+After the bounded follow-up, owner authorized further work, then explicitly stopped before the newest candidate's device measurement completed. Preserve these distinct statuses:
+
+- A dedicated-worker experiment still sampled1,091,291KiB rendererPSS during recreation and was removed. Private explicit native WebView.destroy also sampled1,073,897KiB. Each completed three silence operations, but left the foreground during settling; neither establishes a fix or complete acceptance. Evidence labels worker-isolated-recreation/native-destroy-recreation remain ignored/private.
+- Completed heap-gc-recreation-bounded diagnostic used temporarily enabled WebView debugging and CDP forced collection after disposal. Reported backingStorage fell from about63.6millionbytes to0 and JSusedSize from about11.9million to0.41millionbytes. Following renderer samples fell from about335..340thousandKiB to83..90thousandKiB; subsequent opens sampled around400thousandKiB. This supports delayed realm reclamation, but instrumentation/forcedGC alters behavior and is not a production solution or true-peak bound. Initial collector fetch hang produced no memory evidence; a3second abort was added, and subsequent startup/CDP timeouts were recorded without suppressing native samples. Temporary CDP forwards were removed/debugging disabled after completion.
+- Current experimental SDK candidate briefly recycles at most one released Android browser realm for15seconds, with fresh recognition sessions, cleared model/file mappings, removed disposed callbacks, and adapter epoch fencing in source/generated bridge. Idle expiry closes local transport/runtime files. iOS remains uncached. This affects runtime ownership and needs lease/concurrency/error/deadline and real-device regression review before acceptance. No forcedGC is used in SDK code.
+- Candidate root analyzer initially reported one brace-style info, corrected without a subsequent analyzer run. Candidate arm64 release build succeeded (89.5MB). Install/collector command was interrupted by owner stop, so no candidate memory improvement, lifecycle result or successful install is established. Private probe was force-stopped afterward. Current progress is saved by owner request, not claimed release-ready. No new unit-test suite,5E–G completion, push/publication or iPhone evidence.
 
 Fresh private-app process, unlocked foreground throughout, USB charging, physical Infinix X678B/Android14, WebView153.0.8010.36, unchanged local WebView/WASM runtime. Standalone asset availability/integrity verification2.844s. First session.open6.951s includes another asset verification; adapter/runtime initialization portion4.931s. These are verified local reuse/fresh-process measurements, not fresh-download/first-install startup or cold-storage-cache guarantees.
 

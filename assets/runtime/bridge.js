@@ -10187,6 +10187,7 @@ var samples = 0;
 var sequence = null;
 var score = null;
 var queue = Promise.resolve();
+var epoch = "";
 var post = (value) => window.TilawaSdk.postMessage(JSON.stringify(value));
 var local = async (name) => {
   const response = await fetch(new URL(name, location.href));
@@ -10238,7 +10239,7 @@ async function dispatch(method, data = {}) {
             sequence = event.verses;
             score = event.confidence;
           }
-          post({ kind: "event", event });
+          post({ kind: "event", epoch, event });
         }
       });
       session.setMode("tracking");
@@ -10277,6 +10278,9 @@ async function dispatch(method, data = {}) {
     }
     case "dispose": {
       session = null;
+      sequence = null;
+      score = null;
+      samples = 0;
       const previous = runtime;
       runtime = null;
       if (previous) await previous.release();
@@ -10289,9 +10293,11 @@ async function dispatch(method, data = {}) {
 window.tilawaDispatch = (request) => {
   queue = queue.then(async () => {
     try {
-      post({ kind: "reply", id: request.id, result: await dispatch(request.method, request.data) });
+      if (request.method === "initialize") epoch = request.epoch;
+      else if (request.epoch !== epoch) throw new Error("Stale runtime owner");
+      post({ kind: "reply", epoch: request.epoch, id: request.id, result: await dispatch(request.method, request.data) });
     } catch (error) {
-      post({ kind: "reply", id: request.id, error: String(error) });
+      post({ kind: "reply", epoch: request.epoch, id: request.id, error: String(error) });
     }
   });
 };

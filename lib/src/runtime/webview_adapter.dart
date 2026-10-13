@@ -14,7 +14,9 @@ import '../assets.dart';
 import '../models.dart';
 
 final class TilawaWebViewAdapterFactory implements TilawaEngineAdapterFactory {
-  const TilawaWebViewAdapterFactory();
+  const TilawaWebViewAdapterFactory({this.disposeController});
+  // Private native-teardown diagnostic seam, not exported by public barrels.
+  final Future<void> Function(WebViewController)? disposeController;
   @override
   Future<TilawaEngineAdapter> create(
     TilawaPreparedAssets assets,
@@ -42,7 +44,7 @@ final class TilawaWebViewAdapterFactory implements TilawaEngineAdapterFactory {
         'Default adapter requires the pinned Zipformer baseline.',
       );
     }
-    final adapter = _WebViewAdapter(observationSink);
+    final adapter = _WebViewAdapter(observationSink, disposeController);
     try {
       await adapter.initialize(assets, config);
       return adapter;
@@ -54,9 +56,14 @@ final class TilawaWebViewAdapterFactory implements TilawaEngineAdapterFactory {
 }
 
 final class _WebViewAdapter implements TilawaEngineAdapter {
-  _WebViewAdapter(this._sink);
+  _WebViewAdapter(this._sink, this._disposeController);
   final TilawaObservationSink _sink;
-  final _controller = WebViewController();
+  final Future<void> Function(WebViewController)? _disposeController;
+  WebViewController? _controller;
+  Uri? _origin;
+  static _IdleRuntime? _idle;
+  final _epoch = newTilawaId();
+  Map<String, File>? _files;
   final _pending = <int, Completer<Map<String, Object?>>>{};
   final _ready = Completer<void>();
   HttpServer? _server;
@@ -87,13 +94,34 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
   ) async {
     _ready.future
         .ignore(); // Still rethrows to the later await, without a startup race.
+    // Android's browser may defer collecting entire WASM realms. Reuse at most
+    // one released realm briefly, never a recognition session or asset lease.
+    final idle = Platform.isAndroid && _disposeController == null
+        ? _idle
+        : null;
+    if (idle != null) {
+      _idle = null;
+      idle.expiry.cancel();
+      _controller = idle.controller;
+      _server = idle.server;
+      _requests = idle.requests;
+      _runtimeDirectory = idle.directory;
+      _files = idle.files..addAll(assets.files);
+      _origin = idle.origin;
+      await _bindMessages();
+      await _bindNavigation(idle.origin);
+      _ready.complete();
+      await _initializeSession(config);
+      return;
+    }
+    _controller = WebViewController();
     final support = await getApplicationSupportDirectory();
     // Unique resources per opened adapter prevent concurrent refresh/teardown races.
     final runtime = await Directory(
       p.join(support.path, 'tilawa-runtime'),
     ).create(recursive: true);
     _runtimeDirectory = await runtime.createTemp('session-');
-    final files = <String, File>{...assets.files};
+    final files = _files = <String, File>{...assets.files};
     final runtimeManifest = Map<String, Object?>.from(
       jsonDecode(
             await rootBundle.loadString(
@@ -144,70 +172,82 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
     _server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     final prefix = newTilawaId();
     final origin = Uri.parse('http://127.0.0.1:${_server!.port}/$prefix/');
+    _origin = origin;
     _requests = _server!.listen(
       (request) => unawaited(_serve(request, prefix, files)),
     );
-    await _controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-    await _controller.addJavaScriptChannel(
-      'TilawaSdk',
-      onMessageReceived: (message) {
-        if (_closed) return;
-        try {
-          final parsed = Map<String, Object?>.from(
-            jsonDecode(message.message) as Map,
-          );
-          switch (parsed['kind']) {
-            case 'ready':
-              if (!_ready.isCompleted) _ready.complete();
-            case 'event':
-              _sink(
-                freezeMap(Map<String, Object?>.from(parsed['event'] as Map)),
-              );
-            case 'reply':
-              final completer = _pending.remove(parsed['id']);
-              if (completer == null) return;
-              if (parsed['error'] != null) {
-                completer.completeError(
-                  TilawaException('inferenceFailed', '${parsed['error']}'),
-                );
-              } else {
-                completer.complete(
-                  Map<String, Object?>.from(parsed['result'] as Map),
-                );
-              }
-            case 'error':
-              _disconnect(
-                TilawaException('bridgeDisconnected', '${parsed['error']}'),
-              );
-          }
-        } catch (error) {
-          _disconnect(TilawaException('invalidEngineOutput', '$error'));
-        }
-      },
-    );
-    await _controller.setNavigationDelegate(
-      NavigationDelegate(
-        onNavigationRequest: (request) {
-          final uri = Uri.tryParse(request.url);
-          return uri != null &&
-                  uri.scheme == origin.scheme &&
-                  uri.host == origin.host &&
-                  uri.port == origin.port &&
-                  uri.path.startsWith(origin.path)
-              ? NavigationDecision.navigate
-              : NavigationDecision.prevent;
-        },
-        onWebResourceError: (error) {
-          if (error.isForMainFrame == true) {
-            _disconnect(
-              TilawaException('bridgeDisconnected', error.description),
-            );
-          }
-        },
-      ),
-    );
-    await _controller.loadRequest(origin.resolve('index.html'));
+    await _controller!.setJavaScriptMode(JavaScriptMode.unrestricted);
+    await _bindMessages();
+    await _bindNavigation(origin);
+    await _controller!.loadRequest(origin.resolve('index.html'));
     await _ready.future.timeout(const Duration(seconds: 30));
+    await _initializeSession(config);
+  }
+
+  Future<void> _bindNavigation(Uri origin) =>
+      _controller!.setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (request) {
+            final uri = Uri.tryParse(request.url);
+            return uri != null &&
+                    uri.scheme == origin.scheme &&
+                    uri.host == origin.host &&
+                    uri.port == origin.port &&
+                    uri.path.startsWith(origin.path)
+                ? NavigationDecision.navigate
+                : NavigationDecision.prevent;
+          },
+          onWebResourceError: (error) {
+            if (error.isForMainFrame == true) {
+              _disconnect(
+                TilawaException('bridgeDisconnected', error.description),
+              );
+            }
+          },
+        ),
+      );
+
+  Future<void> _bindMessages() => _controller!.addJavaScriptChannel(
+    'TilawaSdk',
+    onMessageReceived: (message) {
+      if (_closed) return;
+      try {
+        final parsed = Map<String, Object?>.from(
+          jsonDecode(message.message) as Map,
+        );
+        if ((parsed['kind'] == 'event' || parsed['kind'] == 'reply') &&
+            parsed['epoch'] != _epoch) {
+          return;
+        }
+        switch (parsed['kind']) {
+          case 'ready':
+            if (!_ready.isCompleted) _ready.complete();
+          case 'event':
+            _sink(freezeMap(Map<String, Object?>.from(parsed['event'] as Map)));
+          case 'reply':
+            final completer = _pending.remove(parsed['id']);
+            if (completer == null) return;
+            if (parsed['error'] != null) {
+              completer.completeError(
+                TilawaException('inferenceFailed', '${parsed['error']}'),
+              );
+            } else {
+              completer.complete(
+                Map<String, Object?>.from(parsed['result'] as Map),
+              );
+            }
+          case 'error':
+            _disconnect(
+              TilawaException('bridgeDisconnected', '${parsed['error']}'),
+            );
+        }
+      } catch (error) {
+        _disconnect(TilawaException('invalidEngineOutput', '$error'));
+      }
+    },
+  );
+
+  Future<void> _initializeSession(TilawaRecognitionConfig config) async {
     await _call('initialize', {
       'minWordFraction': config.minWordFraction,
       'enableFallback': config.enableFallback,
@@ -218,7 +258,7 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
     });
   }
 
-  Future<void> _serve(
+  static Future<void> _serve(
     HttpRequest request,
     String prefix,
     Map<String, File> files,
@@ -288,9 +328,9 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
     _pending[id] = pending;
     try {
       unawaited(
-        _controller
+        _controller!
             .runJavaScript(
-              'window.tilawaDispatch(${jsonEncode({'id': id, 'method': method, 'data': data})});',
+              'window.tilawaDispatch(${jsonEncode({'id': id, 'epoch': _epoch, 'method': method, 'data': data})});',
             )
             .then<void>(
               (_) {},
@@ -356,15 +396,73 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
   @override
   Future<void> dispose() async {
     if (_closed) return;
+    var released = false;
     try {
       await _call('dispose').timeout(const Duration(seconds: 2));
+      released = _broken == null;
     } catch (_) {
       /* Teardown remains mandatory. */
     }
     _closed = true;
     _disconnect(const TilawaException('disposed', 'Runtime closed.'));
+    final controller = _controller;
+    _controller = null;
+    if (released &&
+        Platform.isAndroid &&
+        _disposeController == null &&
+        controller != null &&
+        _server != null &&
+        _requests != null &&
+        _runtimeDirectory != null &&
+        _files != null) {
+      // Remove every recognition-file mapping before the facade releases its
+      // installation lease. Cached browser infrastructure must not serve assets
+      // belonging to a disposed session or keep its observation callback alive.
+      _files!.removeWhere(
+        (name, _) => !{
+          'index.html',
+          'bridge.js',
+          'ort-wasm-simd-threaded.mjs',
+          'ort-wasm-simd-threaded.wasm',
+        }.contains(name),
+      );
+      await controller.removeJavaScriptChannel('TilawaSdk');
+      await controller.setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (_) => NavigationDecision.prevent,
+        ),
+      );
+      final cached = _IdleRuntime(
+        controller,
+        _server!,
+        _requests!,
+        _runtimeDirectory!,
+        _files!,
+        _origin!,
+      );
+      final previous = _idle;
+      _idle = cached;
+      cached.expiry = Timer(const Duration(seconds: 15), () {
+        if (identical(_idle, cached)) _idle = null;
+        unawaited(cached.close().catchError((Object _) {}));
+      });
+      // Clear adapter ownership. A retained disposed facade cannot retain the
+      // cached host, and simultaneous sessions never share an active runtime.
+      _server = null;
+      _requests = null;
+      _runtimeDirectory = null;
+      _files = null;
+      if (previous != null) {
+        previous.expiry.cancel();
+        await previous.close();
+      }
+      return;
+    }
     try {
-      await _controller.loadHtmlString('<html><body></body></html>');
+      await controller?.removeJavaScriptChannel('TilawaSdk');
+      await controller?.setNavigationDelegate(NavigationDelegate());
+      await controller?.loadHtmlString('<html><body></body></html>');
+      if (controller != null) await _disposeController?.call(controller);
     } finally {
       await _requests?.cancel();
       await _server?.close(force: true);
@@ -372,6 +470,37 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
       if (directory != null && await directory.exists()) {
         await directory.delete(recursive: true);
       }
+    }
+  }
+}
+
+final class _IdleRuntime {
+  _IdleRuntime(
+    this.controller,
+    this.server,
+    this.requests,
+    this.directory,
+    this.files,
+    this.origin,
+  );
+  final WebViewController controller;
+  final HttpServer server;
+  final StreamSubscription<HttpRequest> requests;
+  final Directory directory;
+  final Map<String, File> files;
+  final Uri origin;
+  late final Timer expiry;
+
+  Future<void> close() async {
+    try {
+      await controller.loadHtmlString('<html><body></body></html>');
+    } catch (_) {
+      // A failed renderer must still lose local transport/files.
+    } finally {
+      await requests.cancel();
+      await server.close(force: true);
+      files.clear();
+      if (await directory.exists()) await directory.delete(recursive: true);
     }
   }
 }

@@ -8,6 +8,7 @@ let samples = 0;
 let sequence: unknown[] | null = null;
 let score: number | null = null;
 let queue = Promise.resolve();
+let epoch = '';
 const post = (value: unknown) => (window as any).TilawaSdk.postMessage(JSON.stringify(value));
 const local = async (name: string) => {
   const response = await fetch(new URL(name, location.href));
@@ -43,7 +44,7 @@ async function dispatch(method: string, data: Record<string, unknown> = {}) {
         tailSeconds: Number(data.tailSeconds), debug: data.debug === true,
         onEvent(event) {
           if (event.type === 'final_sequence') { sequence = event.verses; score = event.confidence; }
-          post({ kind: 'event', event });
+          post({ kind: 'event', epoch, event });
         },
       });
       session.setMode('tracking');
@@ -73,6 +74,7 @@ async function dispatch(method: string, data: Record<string, unknown> = {}) {
     }
     case 'dispose': {
       session = null;
+      sequence = null; score = null; samples = 0;
       const previous = runtime; runtime = null;
       if (previous) await previous.release();
       return { disposed: true };
@@ -80,10 +82,14 @@ async function dispatch(method: string, data: Record<string, unknown> = {}) {
     default: throw new Error(`Unknown operation ${method}`);
   }
 }
-(window as any).tilawaDispatch = (request: { id: number; method: string; data?: Record<string, unknown> }) => {
+(window as any).tilawaDispatch = (request: { id: number; epoch: string; method: string; data?: Record<string, unknown> }) => {
   queue = queue.then(async () => {
-    try { post({ kind: 'reply', id: request.id, result: await dispatch(request.method, request.data) }); }
-    catch (error) { post({ kind: 'reply', id: request.id, error: String(error) }); }
+    try {
+      if (request.method === 'initialize') epoch = request.epoch;
+      else if (request.epoch !== epoch) throw new Error('Stale runtime owner');
+      post({ kind: 'reply', epoch: request.epoch, id: request.id, result: await dispatch(request.method, request.data) });
+    }
+    catch (error) { post({ kind: 'reply', epoch: request.epoch, id: request.id, error: String(error) }); }
   });
 };
 window.addEventListener('error', event => post({ kind: 'error', error: event.message }));

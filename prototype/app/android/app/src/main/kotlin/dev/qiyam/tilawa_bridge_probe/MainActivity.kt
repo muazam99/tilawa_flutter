@@ -14,6 +14,7 @@ import android.os.PowerManager
 import android.app.KeyguardManager
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
+import io.flutter.plugins.webviewflutter.WebViewFlutterAndroidExternalApi
 
 class MainActivity : FlutterActivity() {
     private val focusListener = AudioManager.OnAudioFocusChangeListener { }
@@ -23,7 +24,18 @@ class MainActivity : FlutterActivity() {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.qiyam.tilawa_bridge_probe/diagnostics")
             .setMethodCallHandler { call, result ->
                 val audio = getSystemService(AUDIO_SERVICE) as AudioManager
-                if (call.method == "webDebugging") {
+                if (call.method == "destroyWebView") {
+                    val identifier = (call.arguments as? Number)?.toLong()
+                    val view = identifier?.let { WebViewFlutterAndroidExternalApi.getWebView(flutterEngine, it) }
+                    if (view == null) {
+                        result.error("missingWebView", "Owned WebView not found", null)
+                    } else {
+                        view.stopLoading()
+                        view.removeJavascriptInterface("TilawaSdk")
+                        view.destroy()
+                        result.success(null)
+                    }
+                } else if (call.method == "webDebugging") {
                     WebView.setWebContentsDebuggingEnabled(call.arguments == true)
                     result.success(null)
                 } else if (call.method == "takeFocus") {
