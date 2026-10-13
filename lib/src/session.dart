@@ -7,6 +7,7 @@ import 'assets.dart';
 import 'capture_binding.dart';
 import 'models.dart';
 import 'runtime/webview_adapter.dart';
+import 'runtime/native_adapter.dart';
 
 /// One owned runtime with serialized, reset-delimited recognition runs.
 final class TilawaSession {
@@ -39,6 +40,8 @@ final class TilawaSession {
   bool _quarantined = false;
   final _wordCounts = <TilawaAyahRef, int>{};
 
+  /// Verifies and leases [assets], then opens an independently owned adapter.
+  /// Android uses native ONNX in a worker. iOS uses provisional WebView WASM.
   static Future<TilawaSession> open({
     required TilawaPreparedAssets assets,
     TilawaRecognitionConfig config = const TilawaRecognitionConfig(),
@@ -64,11 +67,11 @@ final class TilawaSession {
       }
       await assets.verify();
       session._adapter = acquired =
-          await (adapterFactory ?? const TilawaWebViewAdapterFactory()).create(
-            assets,
-            config,
-            session._observe,
-          );
+          await (adapterFactory ??
+                  (Platform.isAndroid
+                      ? const TilawaNativeAdapterFactory()
+                      : const TilawaWebViewAdapterFactory()))
+              .create(assets, config, session._observe);
       final manifest = assets.manifest;
       session.info = TilawaSessionInfo(
         engineId: manifest.engineId,

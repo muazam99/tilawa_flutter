@@ -7,16 +7,23 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+// ignore: depend_on_referenced_packages
+import 'package:crypto/crypto.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:tilawa_flutter/microphone.dart';
 import 'package:tilawa_flutter/tilawa_flutter.dart';
 // Private instrumentation wraps the real implementation, never example code.
 // ignore: implementation_imports
 import 'package:tilawa_flutter/src/runtime/webview_adapter.dart';
+// ignore: implementation_imports
+import 'package:tilawa_flutter/src/runtime/native_adapter.dart';
 // ignore: depend_on_referenced_packages
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'audio_fixture.dart';
+import 'native_probe_adapter.dart';
+import 'native_worker_probe.dart';
+import 'hybrid_probe.dart';
 
 void main() => runApp(const MaterialApp(home: _PerformanceProbe()));
 
@@ -98,7 +105,9 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
       }).completed;
       if (mode == 'broader') {
         await broader(assets);
-      } else if (mode == 'resources') {
+      } else if (mode == 'resources' ||
+          mode.startsWith('resources-native') ||
+          mode.startsWith('mic-native')) {
         await resources(assets);
       } else if (mode == 'switch-only') {
         await switching(assets);
@@ -106,12 +115,87 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
         await switching(assets, trace: true);
       } else if (mode == 'recreation-only') {
         await recreation(assets);
+      } else if (mode == 'reuse-recognition') {
+        await reuseRecognition(assets);
+      } else if (mode == 'memory-profile') {
+        await memoryProfile(assets);
+      } else if (mode.startsWith('throughput-long')) {
+        final pcm = await load('assets/runtime/validation_ref_002255.audio');
+        session = await TilawaSession.open(
+          assets: assets,
+          config: const TilawaRecognitionConfig(diagnostics: true),
+          adapterFactory: mode.endsWith('hybrid')
+              ? const HybridProbeFactory()
+              : mode.endsWith('tuned')
+              ? const TilawaNativeAdapterFactory(
+                  intraOpNumThreads: 2,
+                  useArena: true,
+                )
+              : null,
+        );
+        await passage('throughput-long-002255', pcm, [
+          [
+            {'surah': 2, 'ayah': 255},
+          ],
+        ]);
+      } else if (mode == 'parity') {
+        final directory = await getExternalStorageDirectory();
+        final raw = await File(
+          '${directory!.path}/tilawa-profile.pcm',
+        ).readAsBytes();
+        final pcm = Float32List.view(
+          raw.buffer,
+          raw.offsetInBytes,
+          raw.length ~/ 4,
+        );
+        for (final backend in ['webview', 'native']) {
+          session = await TilawaSession.open(
+            assets: assets,
+            adapterFactory: backend == 'webview'
+                ? const TilawaWebViewAdapterFactory()
+                : null,
+          );
+          log('PARITY_BACKEND', {
+            'backend': backend,
+            'adapterId': session!.info.adapterId,
+          });
+          await passage('parity-$backend', pcm, [
+            [
+              for (var ayah = 1; ayah <= 5; ayah++)
+                {'surah': 113, 'ayah': ayah},
+            ],
+          ]);
+          await session!.dispose();
+          session = null;
+        }
+      } else if (mode == 'prepare-pcm') {
+        final pcm = await load(
+          'assets/runtime/validation_multi_113_001_005.audio',
+        );
+        final directory = await getExternalStorageDirectory();
+        if (directory == null) {
+          throw StateError('No private external app directory');
+        }
+        final file = File('${directory.path}/tilawa-profile.pcm');
+        await file.writeAsBytes(
+          pcm.buffer.asUint8List(pcm.offsetInBytes, pcm.lengthInBytes),
+          flush: true,
+        );
+        log('PCM_PREPARED', {
+          'file': file.path,
+          'samples': pcm.length,
+          'format': 'mono16k-float32le',
+        });
       } else {
         throw StateError('Unknown validation mode');
       }
       log('COMPLETE', {'mode': mode, 'stoppedByUser': stopRequested});
     } catch (error, stack) {
-      log('ERROR', {'message': '$error'});
+      log('ERROR', {
+        'message': '$error',
+        'lifecycle': WidgetsBinding.instance.lifecycleState?.name,
+        'interruption': session?.snapshot.lastResult?.interruption?.code,
+      });
       debugPrint('$stack');
     } finally {
       await session?.dispose();
@@ -238,6 +322,7 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
     final diagnostics = <String, int>{};
     final matchedRefs = <String>[];
     final progressRefs = <String>{};
+    final progressSnapshots = <Object?>[];
     final events = session!.events.listen((event) {
       if (event is TilawaVerseMatched) {
         matches++;
@@ -246,6 +331,12 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
       if (event is TilawaWordProgress) {
         progress++;
         progressRefs.add('${event.ayah}');
+        progressSnapshots.add([
+          '${event.ayah}',
+          event.wordIndex,
+          event.totalWords,
+          event.matchedIndices,
+        ]);
       }
       if (event is TilawaVerseCandidates) {
         for (final candidate in event.candidates) {
@@ -258,18 +349,37 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
       }
     });
     final clock = Stopwatch()..start();
+    var maxFeedMs = 0;
     for (
       var offset = 0;
       offset < pcm.length && !stopRequested;
       offset += 7680
     ) {
+      final feedClock = Stopwatch()..start();
       await session!.feed(
         Float32List.sublistView(pcm, offset, min(offset + 7680, pcm.length)),
       );
+      maxFeedMs = max(maxFeedMs, feedClock.elapsedMilliseconds);
     }
+    final feedMs = clock.elapsedMilliseconds;
+    final flushClock = Stopwatch()..start();
     final result = await session!.stop();
+    log('PASSAGE_TIMING', {
+      'id': id,
+      'feedMs': feedMs,
+      'flushMs': flushClock.elapsedMilliseconds,
+      'maxFeedMs': maxFeedMs,
+      'audioMs': (pcm.length / 16).round(),
+    });
     await Future<void>.delayed(Duration.zero);
     await events.cancel();
+    log('PROGRESS_FINGERPRINT', {
+      'id': id,
+      'snapshots': progressSnapshots.length,
+      'sha256': sha256
+          .convert(utf8.encode(jsonEncode(progressSnapshots)))
+          .toString(),
+    });
     final actual = result.engineSequence?.map((v) => '${v.ayah}').toList();
     final expected = accepted
         .map(
@@ -302,6 +412,128 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
       'finalization': result.finalization.name,
       'processedSamples': result.processedSamples,
     });
+  }
+
+  Future<void> memoryProfile(TilawaPreparedAssets assets) async {
+    const variant = String.fromEnvironment(
+      'PROBE_MEMORY_VARIANT',
+      defaultValue: 'baseline',
+    );
+    final options = <String, Object?>{};
+    if (variant == 'url') options['loadMode'] = 'url';
+    if (variant == 'basic' || variant == 'basic-no-prepack') {
+      options['graphOptimizationLevel'] = 'basic';
+    }
+    if (variant == 'arena') options['enableCpuMemArena'] = true;
+    if (variant == 'no-prepack' || variant == 'basic-no-prepack') {
+      options['extra'] = {
+        'session': {'disable_prepacking': '1'},
+      };
+    }
+    final directory = await getExternalStorageDirectory();
+    if (directory == null) {
+      throw StateError('No private external app directory');
+    }
+    final raw = await File(
+      '${directory.path}/tilawa-profile.pcm',
+    ).readAsBytes();
+    if (raw.length % 4 != 0) throw StateError('Incomplete prepared PCM');
+    final pcm = Float32List.view(
+      raw.buffer,
+      raw.offsetInBytes,
+      raw.length ~/ 4,
+    );
+    log('MEMORY_VARIANT', {
+      'variant': variant,
+      'options': options,
+      'fixtureDecoder': false,
+      'inputSamples': pcm.length,
+    });
+    await sample('profile-baseline');
+    await Future<void>.delayed(const Duration(seconds: 8));
+    for (var cycle = 1; cycle <= 2 && !stopRequested; cycle++) {
+      await requireForeground();
+      await sample('profile-$cycle-opening');
+      final clock = Stopwatch()..start();
+      session = await TilawaSession.open(
+        assets: assets,
+        adapterFactory: variant == 'hybrid'
+            ? const HybridProbeFactory()
+            : variant.startsWith('sdk-native')
+            ? null
+            : variant == 'native-worker'
+            ? const NativeWorkerProbeFactory()
+            : variant.startsWith('native')
+            ? const NativeProbeFactory()
+            : TilawaWebViewAdapterFactory(sessionOptions: options),
+      );
+      log('PROFILE_OPEN', {
+        'cycle': cycle,
+        'elapsedMs': clock.elapsedMilliseconds,
+        'adapterId': session!.info.adapterId,
+      });
+      await sample('profile-$cycle-ready');
+      await Future<void>.delayed(const Duration(seconds: 8));
+      await sample('profile-$cycle-processing');
+      await passage('profile-$variant-$cycle', pcm, [
+        [
+          for (var ayah = 1; ayah <= 5; ayah++) {'surah': 113, 'ayah': ayah},
+        ],
+      ]);
+      await sample('profile-$cycle-steady');
+      await Future<void>.delayed(const Duration(seconds: 8));
+      await session!.reset();
+      await sample('profile-$cycle-reset');
+      await Future<void>.delayed(const Duration(seconds: 4));
+      await session!.dispose();
+      session = null;
+      await sample('profile-$cycle-disposed');
+      await Future<void>.delayed(const Duration(seconds: 3));
+    }
+    await Future<void>.delayed(const Duration(seconds: 20));
+    await sample('profile-settled');
+  }
+
+  Future<void> reuseRecognition(TilawaPreparedAssets assets) async {
+    final pcm = await load('assets/runtime/validation_multi_113_001_005.audio');
+    for (var cycle = 1; cycle <= 3 && !stopRequested; cycle++) {
+      await requireForeground();
+      session = await TilawaSession.open(assets: assets);
+      await passage('reuse-recognition-$cycle', pcm, [
+        [
+          for (var ayah = 1; ayah <= 5; ayah++) {'surah': 113, 'ayah': ayah},
+        ],
+      ]);
+      await session!.dispose();
+      session = null;
+      // Third open exercises cache expiry, rather than only warm reuse.
+      if (cycle == 2) await Future<void>.delayed(const Duration(seconds: 16));
+    }
+    if (stopRequested) return;
+    final first = await TilawaSession.open(assets: assets);
+    final second = await TilawaSession.open(assets: assets);
+    try {
+      await first.feed(Float32List(16000));
+      await second.feed(Float32List(8000));
+      final a = await first.stop();
+      final b = await second.stop();
+      if (a.processedSamples != 16000 ||
+          b.processedSamples != 8000 ||
+          a.finalization != TilawaFinalization.complete ||
+          b.finalization != TilawaFinalization.complete) {
+        throw StateError('Concurrent runtime sample isolation failed');
+      }
+      log('REUSE_CONCURRENT', {
+        'firstSamples': a.processedSamples,
+        'secondSamples': b.processedSamples,
+        'isolated': true,
+      });
+    } finally {
+      await first.dispose();
+      await second.dispose();
+    }
+    await Future<void>.delayed(const Duration(seconds: 16));
+    log('REUSE_EXPIRED', {'settledSeconds': 16});
   }
 
   Future<void> recreation(TilawaPreparedAssets assets) async {
@@ -366,18 +598,31 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
 
   Future<void> resources(TilawaPreparedAssets assets) async {
     await sample('before-decode');
-    final pcm = await load('assets/runtime/validation_multi_113_001_005.audio');
+    final directory = await getExternalStorageDirectory();
+    final raw = await File(
+      '${directory!.path}/tilawa-profile.pcm',
+    ).readAsBytes();
+    final pcm = Float32List.view(
+      raw.buffer,
+      raw.offsetInBytes,
+      raw.length ~/ 4,
+    );
     await sample('after-decode');
     var factory = _MeasuredFactory();
     final open = Stopwatch()..start();
     session = await TilawaSession.open(assets: assets, adapterFactory: factory);
     log('OPEN', {
       'cycle': 0,
+      'adapterId': session!.info.adapterId,
       'elapsedMs': open.elapsedMilliseconds,
       'adapterInitializeMs': factory.initializeMs,
     });
     await sample('first-open');
-    await paced(pcm, factory);
+    if (!const String.fromEnvironment(
+      'PROBE_VALIDATION',
+    ).startsWith('mic-native')) {
+      await paced(pcm, factory);
+    }
     await session!.reset();
     factory.timings.clear();
     await microphone(factory);
@@ -464,6 +709,14 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
   Future<void> microphone(_MeasuredFactory factory) async {
     if (stopRequested) return;
     final mic = await TilawaMicrophone.open(session: session!);
+    final sessionEvents = session!.events.listen((event) {
+      if (event is TilawaSessionEnded && event.result.interruption != null) {
+        log('MIC_INTERRUPTED', {
+          'code': event.result.interruption!.code,
+          'finalization': event.result.finalization.name,
+        });
+      }
+    });
     var errors = 0, highWaterSamples = 0;
     final subscription = mic.errors.listen((error) {
       errors++;
@@ -524,6 +777,7 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
       poll.cancel();
       await mic.dispose();
       await subscription.cancel();
+      await sessionEvents.cancel();
     }
   }
 
@@ -596,27 +850,28 @@ final class _MeasuredFactory implements TilawaEngineAdapterFactory {
   ) async {
     final clock = Stopwatch()..start();
     final progress = <String, int>{};
-    final inner = await const TilawaWebViewAdapterFactory().create(
-      assets,
-      config,
-      (event) {
-        if (trace != null) {
-          if (event['type'] == 'word_progress') {
-            final ref = '${event['surah']}:${event['ayah']}';
-            progress.update(ref, (count) => count + 1, ifAbsent: () => 1);
-            if (progress[ref] == 1) trace!('RAW_FIRST_PROGRESS', event);
-          } else if ([
-            'debug',
-            'verse_match',
-            'verse_candidate',
-            'final_sequence',
-          ].contains(event['type'])) {
-            trace!('RAW_EVENT', event);
-          }
+    const mode = String.fromEnvironment('PROBE_VALIDATION');
+    final TilawaEngineAdapterFactory backend =
+        (mode.startsWith('resources-native') || mode.startsWith('mic-native'))
+        ? const TilawaNativeAdapterFactory()
+        : const TilawaWebViewAdapterFactory();
+    final inner = await backend.create(assets, config, (event) {
+      if (trace != null) {
+        if (event['type'] == 'word_progress') {
+          final ref = '${event['surah']}:${event['ayah']}';
+          progress.update(ref, (count) => count + 1, ifAbsent: () => 1);
+          if (progress[ref] == 1) trace!('RAW_FIRST_PROGRESS', event);
+        } else if ([
+          'debug',
+          'verse_match',
+          'verse_candidate',
+          'final_sequence',
+        ].contains(event['type'])) {
+          trace!('RAW_EVENT', event);
         }
-        sink(event);
-      },
-    );
+      }
+      sink(event);
+    });
     initializeMs = clock.elapsedMilliseconds;
     return _MeasuredAdapter(inner, timings, trace, progress);
   }

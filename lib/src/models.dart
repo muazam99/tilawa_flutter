@@ -21,6 +21,8 @@ enum TilawaFinalization { complete, incomplete }
 
 enum TilawaTranscriptRepresentation { phonemes, arabicText, unknown }
 
+/// SDK failure with a stable code and suggested recovery category.
+/// Runtime or disposal failures require a fresh session, not an input retry.
 final class TilawaException implements Exception {
   const TilawaException(this.code, this.message, {this.operationId});
   final String code;
@@ -52,6 +54,7 @@ final class TilawaException implements Exception {
   String toString() => 'TilawaException($code): $message';
 }
 
+/// Quran reference with 1-based surah and ayah numbers.
 final class TilawaAyahRef {
   const TilawaAyahRef(this.surah, this.ayah);
   final int surah;
@@ -65,6 +68,7 @@ final class TilawaAyahRef {
   String toString() => '$surah:$ayah';
 }
 
+/// Corpus word reference. [indexInAyah] is 0-based, independent of display text.
 final class TilawaWordRef {
   const TilawaWordRef(this.ayah, this.indexInAyah);
   final TilawaAyahRef ayah;
@@ -78,6 +82,9 @@ final class TilawaWordRef {
   int get hashCode => Object.hash(ayah, indexInAyah);
 }
 
+/// Recognition policy and bounded audio admission/cleanup budgets.
+/// Scores and matching thresholds are engine values, not calibrated accuracy.
+/// Deadlines bound SDK waiting; they cannot preempt native OS calls.
 final class TilawaRecognitionConfig {
   const TilawaRecognitionConfig({
     this.minWordFraction = 0.5,
@@ -137,6 +144,7 @@ final class TilawaRecognitionConfig {
   }
 }
 
+/// Observations available from an adapter, rather than accuracy guarantees.
 final class TilawaCapabilities {
   TilawaCapabilities({
     required Set<String> observations,
@@ -176,6 +184,7 @@ final class TilawaSessionInfo {
   final TilawaRecognitionConfig config;
 }
 
+/// Session/run identity and event ordering for rejecting stale UI updates.
 final class TilawaEventContext {
   const TilawaEventContext({
     required this.sessionId,
@@ -240,6 +249,7 @@ final class TilawaSurroundingVerse {
   final bool isCurrent;
 }
 
+/// Engine verse match. A fallback match need not have word-progress evidence.
 final class TilawaVerseMatched extends TilawaEvent {
   TilawaVerseMatched(
     super.context,
@@ -256,6 +266,8 @@ final class TilawaVerseMatched extends TilawaEvent {
   String get provenance => 'notProvided';
 }
 
+/// Current 0-based word snapshot; replace previous indices rather than unioning.
+/// Includes uncertain matches and revisions, not certified words read.
 final class TilawaWordProgress extends TilawaEvent {
   TilawaWordProgress(
     super.context,
@@ -269,6 +281,8 @@ final class TilawaWordProgress extends TilawaEvent {
   final List<int> matchedIndices;
 }
 
+/// Replacement transcript snapshot in the adapter's declared representation.
+/// The default engine produces phonemes, not ordinary Arabic text.
 final class TilawaTranscriptUpdated extends TilawaEvent {
   const TilawaTranscriptUpdated(
     super.context,
@@ -348,6 +362,9 @@ final class TilawaFeedReceipt {
   final int startSample, endSample, processedThrough;
 }
 
+/// Finalized operation evidence and the engine's non-exhaustive verse sequence.
+/// Complete finalization means draining succeeded, not every verse was found.
+/// Consume either the returned result or SessionEnded for aggregation, not both.
 final class TilawaSessionResult {
   TilawaSessionResult({
     required this.sessionId,
@@ -442,6 +459,9 @@ final class TilawaAyahMetadata {
   final List<int> pages, juz;
 }
 
+/// Optional caller-owned display metadata compatible with the pinned corpus.
+/// Identity and mappings are validated; actual label/layout accuracy is yours.
+/// Awaited lookups must still be guarded against run/ayah changes by consumers.
 abstract interface class TilawaMetadataResolver {
   TilawaMetadataDescriptor get descriptor;
   Future<TilawaAyahMetadata?> resolveAyah(TilawaAyahRef ayah);

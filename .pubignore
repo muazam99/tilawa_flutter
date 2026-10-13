@@ -1,0 +1,37 @@
+# Private implementation history and maintainer inputs.
+prototype/
+tool/
+PLAN.md
+PHASE3.md
+.git/
+.gitattributes
+.gitignore
+.agents/
+.codex/
+
+# Local Flutter/IDE/build products, including the public example.
+**/.dart_tool/
+**/build/
+**/.gradle/
+**/.idea/
+**/.vscode/
+**/.flutter-plugins*
+**/.pub-cache/
+**/.pub/
+**/coverage/
+**/*.iml
+**/*.log
+**/*.jks
+**/*.keystore
+**/key.properties
+**/local.properties
+**/.DS_Store
+**/Pods/
+**/.symlinks/
+**/ephemeral/
+**/Generated.xcconfig
+**/flutter_export_environment.sh
+**/.last_build_id
+**/doc/api/
+**/app.*.symbols
+**/app.*.map.json

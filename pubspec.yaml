@@ -1,5 +1,5 @@
 name: tilawa_flutter
-description: Offline Tilawa Quran recognition for Flutter. Development SDK.
+description: Offline Tilawa Quran recognition and word tracking with bounded audio sessions, verified assets, optional microphone capture and display metadata.
 version: 0.1.0-dev.1
 publish_to: none
 environment:
@@ -8,13 +8,20 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  crypto: 3.0.7
-  path: 1.9.1
-  path_provider: 2.1.5
-  webview_flutter: 4.13.0
-  record: 6.1.2
+  crypto: '>=3.0.7 <3.1.0'
+  path: '>=1.9.1 <1.10.0'
+  path_provider: '>=2.1.5 <2.2.0'
+  webview_flutter: '>=4.13.0 <4.14.0'
+  record: '>=6.1.2 <6.2.0'
+  flutter_onnxruntime: 1.8.1
+  quickjs_engine: 0.1.6
 dev_dependencies:
   flutter_lints: ^5.0.0
 flutter:
+  plugin:
+    platforms:
+      android:
+        package: dev.tilawa.flutter
+        pluginClass: TilawaRuntimePlugin
   assets:
     - assets/runtime/

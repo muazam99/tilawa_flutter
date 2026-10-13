@@ -32,11 +32,27 @@ async function dispatch(method: string, data: Record<string, unknown> = {}) {
       ort.env.wasm.numThreads = 1;
       ort.env.wasm.proxy = false;
       ort.env.wasm.wasmPaths = new URL('./', location.href).href;
-      const [model, corpus, io] = await Promise.all([
-        local('model.onnx').then(r => r.arrayBuffer()),
-        local('corpus.json').then(r => r.json()), local('io.json').then(r => r.json()),
-      ]);
-      runtime = await ort.InferenceSession.create(model, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
+      const { loadMode, ...diagnosticOptions } = (data.sessionOptions ?? {}) as
+        ort.InferenceSession.SessionOptions & { loadMode?: string };
+      const options: ort.InferenceSession.SessionOptions = {
+        executionProviders: ['wasm'], graphOptimizationLevel: 'all', ...diagnosticOptions,
+      };
+      let corpus, io;
+      if (loadMode === 'url') {
+        // ORT owns the temporary fetch buffer; do not retain a second model
+        // ArrayBuffer while parsing the corpus and constructing the tracker.
+        runtime = await ort.InferenceSession.create(new URL('model.onnx', location.href).href, options);
+        [corpus, io] = await Promise.all([
+          local('corpus.json').then(r => r.json()), local('io.json').then(r => r.json()),
+        ]);
+      } else {
+        const loaded = await Promise.all([
+          local('model.onnx').then(r => r.arrayBuffer()),
+          local('corpus.json').then(r => r.json()), local('io.json').then(r => r.json()),
+        ]);
+        runtime = await ort.InferenceSession.create(loaded[0], options);
+        [corpus, io] = loaded.slice(1);
+      }
       session = await createZipformerSession({ session: runtime, Tensor: ort.Tensor,
         corpus, io, structural: false, slipHead: false,
         minWordFraction: Number(data.minWordFraction), enableFallback: data.enableFallback === true,

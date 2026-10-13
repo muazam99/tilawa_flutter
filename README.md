@@ -1,16 +1,16 @@
 # tilawa_flutter (development SDK)
 
-Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. Phase 4 and Phase 5A/5B Android checkpoints are complete; Phase5C Android recovery evidence is recorded in PHASE3.md. Physical route/renderer/native cleanup and platform/resource gates remain open. This is not a published package; author-code licensing and final runtime selection remain under review.
+Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. This is a development SDK, not a published package. Android device checks cover recognition, tracking, offline setup and recovery. Physical route/renderer/native cleanup and platform/resource gates remain open. Authored code is MIT licensed; third-party and asset terms are listed in [NOTICE.md](NOTICE.md). Final runtime selection remains under review.
 
-Phase5D Android measurements are in prototype/FEASIBILITY.md: five-minute paced input and foreground capture completed, broader fixtures exposed mixed-passage omissions, and recreation produced a material renderer-memory spike. These are device-specific development checkpoints, not full-Quran accuracy, leak-free cleanup or final runtime/resource acceptance.
+Five-minute Android paced input and foreground capture completed. Broader fixtures exposed mixed-passage omissions, and recreation produced a material renderer-memory spike. These are device-specific development checkpoints, not full-Quran accuracy, leak-free cleanup or final runtime/resource acceptance.
 
-Android evidence is recorded separately for the private Phase 1 bridge, Phase 3 public facade and Phase 5 standalone example. These checks do not establish iOS support or close deferred fault/resource gates. See [PLAN.md](PLAN.md), [API_CONTRACT.md](API_CONTRACT.md), [PHASE3.md](PHASE3.md) and [example evidence](example/README.md).
+Android checks do not establish iOS support or close deferred fault/resource gates. See [API_CONTRACT.md](API_CONTRACT.md) and [example evidence](example/README.md) for contract details and verification limits.
 
 ## Requirements
 
 - Flutter 3.35.1 / Dart 3.9 or newer compatible versions.
 - Intended platforms: Android API 24+ and iOS 16+. Physical iPhone verification is pending.
-- Android app: INTERNET permission and a network-security policy allowing cleartext **only for 127.0.0.1/localhost**, for the app-owned loopback server. See `example/android/app/src/main` for the scoped example.
+- Android app: INTERNET permission for asset downloads. Native recognition reads verified local files and needs no loopback server. The checked-in example also permits loopback for the optional WebView runtime.
 - iOS app: iOS 16 deployment target and local-network ATS configuration, as prepared in `example/ios/Runner/Info.plist`. iOS build/runtime is not verified on this Windows host.
 - Optional microphone: Android RECORD_AUDIO permission and iOS NSMicrophoneUsageDescription. The helper requests permission only when start is called.
 
@@ -21,6 +21,20 @@ The conventional [example app](example/README.md) uses only the exported SDK API
 Its nine-ayah112/113 corpus-label fixture is distributed under NPL-1.2 with the full license in SDK runtime assets. Recognition elsewhere retains references/indices with an honest unavailable-display state. Event counts are example-owned observations, not repeat credit or page completion. See [NOTICE.md](NOTICE.md) for the5A distribution/license inventory and open release decisions.
 
 Runtime JS/WASM and third-party notices are package assets under `assets/runtime`. Consumers do not need Node/npm. The large model, phoneme corpus and benchmark audio are not SDK package assets.
+
+Until publication, add this SDK as a local path dependency named `tilawa_flutter`
+in your app's pubspec.yaml, pointing at the package directory, and run
+`flutter pub get`. Add microphone permission only if using the optional helper.
+Downloaded recognition assets total about 74.7 MB; bundled runtime assets total
+about 14 MB. These are asset sizes, not the installed application's memory cost.
+The Android native default replaces the prior WebView recognition backend, whose
+recreation checks sampled over 1 GiB of renderer memory. Native development checks
+show substantially lower added recognition RAM with the same model and matching
+core. Five-minute paced and microphone checks passed, but long-ayah feeding in
+the QuickJS candidate is slower than incoming audio. Runtime acceptance remains
+open while native inference with browser matching is evaluated. Device samples are
+not worst-case memory bounds. Prefer one active session and reset it between runs
+when healthy.
 
 ## Local files and external audio
 
@@ -61,6 +75,13 @@ try {
 `onProgress`, `onResult`, paths and `mono16kAudio` are application-provided. A default chunk is limited to one second; outstanding in-flight/pending PCM is limited to two seconds. Feed copies input at admission. Await feeds in order; async stream callbacks are not a bounded capture queue. Rejected audioOverrun input is not silently dropped or accepted.
 
 Stop is terminal/idempotent. Reset starts another run using the same healthy runtime; dispose releases it without implicit finalization. Interrupt attempts bounded finalization and explicitly distinguishes incomplete output from an empty recognized sequence. Quarantined/failed runtimes require a new session. There is no five-minute SDK limit.
+
+The Android development default uses native ONNX Runtime 1.24.2 for inference and
+the pinned Tilawa matching core in a QuickJS worker isolate. Recurrent tensors stay
+native; each session owns its model, state and worker. Dispose waits for actual
+native cleanup before releasing asset leases. The package supplies ONNX JNI R8
+keep rules and checks the native runtime version. iOS retains the provisional
+WebView/WASM backend and still needs physical-device validation.
 
 ## Downloaded or bundled assets
 
@@ -117,7 +138,7 @@ Scores are preserved engine values, not probabilities; accumulated scores may ex
 
 At the pinned baseline, stop fallback runs only when no verse has emitted. A short passage recognized by fallback alone can be omitted when later live matches occur in the same run. Android mixed-passage checks also omitted early ayahs after a tracked passage change. Finalization complete means the runtime drained/flushed successfully, not that the final sequence contains everything recited. No missing references or reading occurrences are synthesized.
 
-Lost/relocated observations are opt-in diagnostics at this pinned baseline, not a guaranteed typed transition stream. A lost diagnostic can coexist with sampled tracking state `tracking`; retain that distinction instead of inventing a complete loss/recovery history. The Android repetition probe produced additional progress with no new verse matches, then located a different surah in the same run. See PLAN section 13 for measured outcomes and limitations.
+Lost/relocated observations are opt-in diagnostics at this pinned baseline, not a guaranteed typed transition stream. A lost diagnostic can coexist with sampled tracking state `tracking`; retain that distinction instead of inventing a complete loss/recovery history. Android repetition checks produced additional progress with no new verse matches, then located a different surah in the same run.
 
 ## Attribution and development
 

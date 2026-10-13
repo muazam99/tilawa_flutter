@@ -93,6 +93,14 @@ Reset retains verified assets, runtime resources, immutable config, capabilities
 
 Deadlines bound the caller's wait, not a promise that native/WASM execution is preemptible. A timed-out runtime is quarantined, cannot receive further input or be reset for reuse, and its output is ignored. Cleanup failure is reported explicitly. Actual cancellation/renderer teardown behaviour must be established per adapter in Phase 3 and platform validation.
 
+The Android development default uses native ONNX Runtime 1.24.2 and the pinned
+matching core in a QuickJS worker isolate. Each adapter owns its recurrent native
+tensors, model session and worker. Native calls use the binding's background task
+queue; synchronous matching/DSP stays off Flutter's UI isolate. Cleanup acknowledges
+actual native disposal before releasing leases or terminating the worker. Caller
+deadlines cannot forcibly preempt native inference. iOS retains the provisional
+WebView/WASM backend. Runtime identity is exposed in session info.
+
 ## 4. Audio contract and backpressure
 
 - `Float32List`, mono, exactly 16,000 samples per second, finite normalized values in `[-1.0, 1.0]`. Reject NaN/infinity/out-of-range input; no hidden normalization/clipping.

@@ -1,16 +1,27 @@
 {
   "upstreamCommit": "2f2617460dc4a6b967e0cc49fa04804bbf22ec69",
   "ortVersion": "1.24.2",
+  "quickjsVersion": "0.1.6",
   "artifacts": [
     {
       "name": "bridge.js",
-      "bytes": 727978,
-      "sha256": "693a1b94c9fc8cb60d1c62b60842740a6acf6f64cf87fb2298d2ff7589e15ff4"
+      "bytes": 728504,
+      "sha256": "bc22c6b388228c467e2cb9f0f6a9d7afcc58762f3d0849637e4860e66f545fe6"
+    },
+    {
+      "name": "FLUTTER_ONNXRUNTIME_LICENSE",
+      "bytes": 1064,
+      "sha256": "07e01db95f34e75e3a1aaffd8c6ac102c4519bba5b222752d424a96cacd5923c"
     },
     {
       "name": "index.html",
       "bytes": 345,
       "sha256": "4813deaaa1c3ab1a1c49fec3d17de959b84669f4490bfad3287313fa51031df9"
+    },
+    {
+      "name": "native.js",
+      "bytes": 644378,
+      "sha256": "a8d9fb5bc45d2d6779ba7fb580367081fdc8c4713cc63049ebea71f2cfc3c659"
     },
     {
       "name": "NPL-1.2.txt",
@@ -36,6 +47,11 @@
       "name": "ort-wasm-simd-threaded.wasm",
       "bytes": 12303130,
       "sha256": "175fabe412fc7fd1376e3178861a47ebfdc30cedb3b2c3f6bb72c37d96c26f73"
+    },
+    {
+      "name": "QUICKJS_ENGINE_LICENSE",
+      "bytes": 4272,
+      "sha256": "29b6165030557df8cfe10f88d2c65d117862251106a56bdda7667b509e0639b9"
     },
     {
       "name": "TILAWA_LICENSE",

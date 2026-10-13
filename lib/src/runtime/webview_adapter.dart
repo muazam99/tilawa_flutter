@@ -14,9 +14,14 @@ import '../assets.dart';
 import '../models.dart';
 
 final class TilawaWebViewAdapterFactory implements TilawaEngineAdapterFactory {
-  const TilawaWebViewAdapterFactory({this.disposeController});
+  const TilawaWebViewAdapterFactory({
+    this.disposeController,
+    this.sessionOptions,
+  });
   // Private native-teardown diagnostic seam, not exported by public barrels.
   final Future<void> Function(WebViewController)? disposeController;
+  // Private memory-diagnostic seam, not exported by public barrels.
+  final Map<String, Object?>? sessionOptions;
   @override
   Future<TilawaEngineAdapter> create(
     TilawaPreparedAssets assets,
@@ -44,7 +49,11 @@ final class TilawaWebViewAdapterFactory implements TilawaEngineAdapterFactory {
         'Default adapter requires the pinned Zipformer baseline.',
       );
     }
-    final adapter = _WebViewAdapter(observationSink, disposeController);
+    final adapter = _WebViewAdapter(
+      observationSink,
+      disposeController,
+      sessionOptions,
+    );
     try {
       await adapter.initialize(assets, config);
       return adapter;
@@ -56,10 +65,12 @@ final class TilawaWebViewAdapterFactory implements TilawaEngineAdapterFactory {
 }
 
 final class _WebViewAdapter implements TilawaEngineAdapter {
-  _WebViewAdapter(this._sink, this._disposeController);
+  _WebViewAdapter(this._sink, this._disposeController, this._sessionOptions);
   final TilawaObservationSink _sink;
   final Future<void> Function(WebViewController)? _disposeController;
+  final Map<String, Object?>? _sessionOptions;
   WebViewController? _controller;
+  _RuntimeMessages _messages = _RuntimeMessages();
   Uri? _origin;
   static _IdleRuntime? _idle;
   final _epoch = newTilawaId();
@@ -108,7 +119,8 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
       _runtimeDirectory = idle.directory;
       _files = idle.files..addAll(assets.files);
       _origin = idle.origin;
-      await _bindMessages();
+      _messages = idle.messages;
+      _messages.receive = _receiveMessage;
       await _bindNavigation(idle.origin);
       _ready.complete();
       await _initializeSession(config);
@@ -207,48 +219,55 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
         ),
       );
 
-  Future<void> _bindMessages() => _controller!.addJavaScriptChannel(
-    'TilawaSdk',
-    onMessageReceived: (message) {
-      if (_closed) return;
-      try {
-        final parsed = Map<String, Object?>.from(
-          jsonDecode(message.message) as Map,
-        );
-        if ((parsed['kind'] == 'event' || parsed['kind'] == 'reply') &&
-            parsed['epoch'] != _epoch) {
-          return;
-        }
-        switch (parsed['kind']) {
-          case 'ready':
-            if (!_ready.isCompleted) _ready.complete();
-          case 'event':
-            _sink(freezeMap(Map<String, Object?>.from(parsed['event'] as Map)));
-          case 'reply':
-            final completer = _pending.remove(parsed['id']);
-            if (completer == null) return;
-            if (parsed['error'] != null) {
-              completer.completeError(
-                TilawaException('inferenceFailed', '${parsed['error']}'),
-              );
-            } else {
-              completer.complete(
-                Map<String, Object?>.from(parsed['result'] as Map),
-              );
-            }
-          case 'error':
-            _disconnect(
-              TilawaException('bridgeDisconnected', '${parsed['error']}'),
-            );
-        }
-      } catch (error) {
-        _disconnect(TilawaException('invalidEngineOutput', '$error'));
+  Future<void> _bindMessages() {
+    final messages = _messages;
+    messages.receive = _receiveMessage;
+    // Keep the native channel installed across reuse. Android channel removal
+    // takes effect on the next page load and cannot safely rebind a live page.
+    return _controller!.addJavaScriptChannel(
+      'TilawaSdk',
+      onMessageReceived: (message) => messages.receive?.call(message.message),
+    );
+  }
+
+  void _receiveMessage(String message) {
+    if (_closed) return;
+    try {
+      final parsed = Map<String, Object?>.from(jsonDecode(message) as Map);
+      if ((parsed['kind'] == 'event' || parsed['kind'] == 'reply') &&
+          parsed['epoch'] != _epoch) {
+        return;
       }
-    },
-  );
+      switch (parsed['kind']) {
+        case 'ready':
+          if (!_ready.isCompleted) _ready.complete();
+        case 'event':
+          _sink(freezeMap(Map<String, Object?>.from(parsed['event'] as Map)));
+        case 'reply':
+          final completer = _pending.remove(parsed['id']);
+          if (completer == null) return;
+          if (parsed['error'] != null) {
+            completer.completeError(
+              TilawaException('inferenceFailed', '${parsed['error']}'),
+            );
+          } else {
+            completer.complete(
+              Map<String, Object?>.from(parsed['result'] as Map),
+            );
+          }
+        case 'error':
+          _disconnect(
+            TilawaException('bridgeDisconnected', '${parsed['error']}'),
+          );
+      }
+    } catch (error) {
+      _disconnect(TilawaException('invalidEngineOutput', '$error'));
+    }
+  }
 
   Future<void> _initializeSession(TilawaRecognitionConfig config) async {
     await _call('initialize', {
+      if (_sessionOptions != null) 'sessionOptions': _sessionOptions,
       'minWordFraction': config.minWordFraction,
       'enableFallback': config.enableFallback,
       'fallbackMaxDistance': config.fallbackMaxDistance,
@@ -404,6 +423,7 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
       /* Teardown remains mandatory. */
     }
     _closed = true;
+    _messages.receive = null;
     _disconnect(const TilawaException('disposed', 'Runtime closed.'));
     final controller = _controller;
     _controller = null;
@@ -426,12 +446,17 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
           'ort-wasm-simd-threaded.wasm',
         }.contains(name),
       );
-      await controller.removeJavaScriptChannel('TilawaSdk');
-      await controller.setNavigationDelegate(
-        NavigationDelegate(
-          onNavigationRequest: (_) => NavigationDecision.prevent,
-        ),
-      );
+      try {
+        await controller.setNavigationDelegate(
+          NavigationDelegate(
+            onNavigationRequest: (_) => NavigationDecision.prevent,
+          ),
+        );
+      } catch (_) {
+        // A failed detach must close the host rather than cache a broken realm.
+        await _closeHost(controller);
+        return;
+      }
       final cached = _IdleRuntime(
         controller,
         _server!,
@@ -439,6 +464,7 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
         _runtimeDirectory!,
         _files!,
         _origin!,
+        _messages,
       );
       final previous = _idle;
       _idle = cached;
@@ -458,20 +484,35 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
       }
       return;
     }
+    await _closeHost(controller);
+  }
+
+  Future<void> _closeHost(WebViewController? controller) async {
     try {
       await controller?.removeJavaScriptChannel('TilawaSdk');
       await controller?.setNavigationDelegate(NavigationDelegate());
       await controller?.loadHtmlString('<html><body></body></html>');
       if (controller != null) await _disposeController?.call(controller);
     } finally {
-      await _requests?.cancel();
-      await _server?.close(force: true);
-      final directory = _runtimeDirectory;
-      if (directory != null && await directory.exists()) {
-        await directory.delete(recursive: true);
+      try {
+        await _requests?.cancel();
+      } finally {
+        try {
+          await _server?.close(force: true);
+        } finally {
+          _files?.clear();
+          final directory = _runtimeDirectory;
+          if (directory != null && await directory.exists()) {
+            await directory.delete(recursive: true);
+          }
+        }
       }
     }
   }
+}
+
+final class _RuntimeMessages {
+  void Function(String)? receive;
 }
 
 final class _IdleRuntime {
@@ -482,6 +523,7 @@ final class _IdleRuntime {
     this.directory,
     this.files,
     this.origin,
+    this.messages,
   );
   final WebViewController controller;
   final HttpServer server;
@@ -489,6 +531,7 @@ final class _IdleRuntime {
   final Directory directory;
   final Map<String, File> files;
   final Uri origin;
+  final _RuntimeMessages messages;
   late final Timer expiry;
 
   Future<void> close() async {
@@ -497,10 +540,17 @@ final class _IdleRuntime {
     } catch (_) {
       // A failed renderer must still lose local transport/files.
     } finally {
-      await requests.cancel();
-      await server.close(force: true);
-      files.clear();
-      if (await directory.exists()) await directory.delete(recursive: true);
+      messages.receive = null;
+      try {
+        await requests.cancel();
+      } finally {
+        try {
+          await server.close(force: true);
+        } finally {
+          files.clear();
+          if (await directory.exists()) await directory.delete(recursive: true);
+        }
+      }
     }
   }
 }

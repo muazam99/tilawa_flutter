@@ -9,9 +9,9 @@ const label = process.argv[3];
 if (!adb || !/^[a-z0-9-]+$/.test(label ?? '')) throw new Error('Usage: node capture_validation.mjs <adb-executable> <label>');
 const intervalSeconds = Number(process.argv[4] ?? 30);
 const deadlineSeconds = Number(process.argv[5] ?? 900);
-if (!Number.isInteger(intervalSeconds) || intervalSeconds < 5 || intervalSeconds > 30 ||
+if (!Number.isInteger(intervalSeconds) || intervalSeconds < 1 || intervalSeconds > 30 ||
     !Number.isInteger(deadlineSeconds) || deadlineSeconds < 60 || deadlineSeconds > 900) {
-  throw new Error('Sampling interval must be5..30s and deadline60..900s');
+  throw new Error('Sampling interval must be1..30s and deadline60..900s');
 }
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const output = join(root, '.cache/validation-evidence');
@@ -97,7 +97,9 @@ async function sample() {
     catch (error) { heap = { error: String(error) }; }
     await appendFile(memoryFile, JSON.stringify({ at: new Date().toISOString(), startedAt, stage: sampledStage,
       rendererAssociation: associated.size ? 'service-owned-by-probe' : 'unresolved-or-not-yet-created',
-      measurements, heap, batteryTemperatureTenthsC: Number(battery.match(/temperature:\s*(\d+)/)?.[1] ?? 0),
+      measurements, totalPssKiB: measurements.reduce((sum, value) => sum + (value.pssKiB ?? 0), 0),
+      totalSwapPssKiB: measurements.reduce((sum, value) => sum + (value.swapPssKiB ?? 0), 0),
+      heap, batteryTemperatureTenthsC: Number(battery.match(/temperature:\s*(\d+)/)?.[1] ?? 0),
     }) + '\n');
   } catch (error) {
     await appendFile(memoryFile, JSON.stringify({ at: new Date().toISOString(), error: `${error}` }) + '\n');
@@ -128,7 +130,7 @@ logcat.stdout.on('data', (chunk) => {
   const lines = buffer.split('\n');
   buffer = lines.pop();
   for (const line of lines) {
-    if (!line.includes('TILAWA_PERF ')) continue;
+    if (!line.includes('TILAWA_PERF ') && !line.includes('TILAWA_NATIVE_STATS ')) continue;
     writes = writes.then(() => appendFile(logFile, line + '\n'));
     console.log(line);
     const checkpoint = line.match(/TILAWA_PERF MEMORY (\{.*\})/);

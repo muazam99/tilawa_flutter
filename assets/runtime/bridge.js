@@ -10215,12 +10215,28 @@ async function dispatch(method, data = {}) {
       Y.wasm.numThreads = 1;
       Y.wasm.proxy = false;
       Y.wasm.wasmPaths = new URL("./", location.href).href;
-      const [model, corpus, io2] = await Promise.all([
-        local("model.onnx").then((r) => r.arrayBuffer()),
-        local("corpus.json").then((r) => r.json()),
-        local("io.json").then((r) => r.json())
-      ]);
-      runtime = await ns.create(model, { executionProviders: ["wasm"], graphOptimizationLevel: "all" });
+      const { loadMode, ...diagnosticOptions } = data.sessionOptions ?? {};
+      const options = {
+        executionProviders: ["wasm"],
+        graphOptimizationLevel: "all",
+        ...diagnosticOptions
+      };
+      let corpus, io2;
+      if (loadMode === "url") {
+        runtime = await ns.create(new URL("model.onnx", location.href).href, options);
+        [corpus, io2] = await Promise.all([
+          local("corpus.json").then((r) => r.json()),
+          local("io.json").then((r) => r.json())
+        ]);
+      } else {
+        const loaded = await Promise.all([
+          local("model.onnx").then((r) => r.arrayBuffer()),
+          local("corpus.json").then((r) => r.json()),
+          local("io.json").then((r) => r.json())
+        ]);
+        runtime = await ns.create(loaded[0], options);
+        [corpus, io2] = loaded.slice(1);
+      }
       session = await createZipformerSession({
         session: runtime,
         Tensor: de,

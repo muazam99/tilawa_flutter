@@ -21,6 +21,15 @@ for (const entry of tree.tree.filter(e => e.type === 'blob' && e.path.startsWith
 }
 const output = join(root, 'assets/runtime');
 await mkdir(output, { recursive: true });
+// Native dependency licenses are checked-in distribution inputs. Refuse to
+// regenerate a bundle that silently loses their retained copyright notices.
+for (const name of ['QUICKJS_ENGINE_LICENSE', 'FLUTTER_ONNXRUNTIME_LICENSE']) {
+  await readFile(join(output, name));
+}
+await build({ entryPoints: [join(root, 'tool/runtime/native_bridge.ts')],
+  outfile: join(output, 'native.js'), bundle: true, format: 'iife', platform: 'neutral',
+  target: ['es2020'], legalComments: 'eof',
+  alias: { '@pinned/session': join(upstream, 'packages/core/src/recitation/session.ts') } });
 await build({ entryPoints: [join(root, 'tool/runtime/bridge.ts')],
   outfile: join(output, 'bridge.js'), bundle: true, format: 'esm', platform: 'browser',
   target: ['es2022'], legalComments: 'eof',
@@ -41,6 +50,6 @@ for (const name of await readdir(output)) {
   artifacts.push({ name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
 }
 await writeFile(join(output, 'manifest.json'), JSON.stringify({
-  upstreamCommit: baseline.upstream.commit, ortVersion: '1.24.2', artifacts,
+  upstreamCommit: baseline.upstream.commit, ortVersion: '1.24.2', quickjsVersion: '0.1.6', artifacts,
 }, null, 2) + '\n');
 console.log(`SDK runtime generated: ${artifacts.length} artifacts; no model/corpus/audio included.`);
