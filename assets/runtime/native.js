@@ -1726,6 +1726,10 @@
     return weightedLevenshtein(a, b, table) / Math.max(a.length, b.length);
   }
   function alignGlobal(heard, ref, from, to, table) {
+    const kernel = globalThis.nativeAlignGlobal;
+    if (typeof kernel === "function") {
+      return new Int32Array(kernel(heard.slice().buffer, ref.slice(from, to).buffer, table.matrix.buffer, from));
+    }
     const n = heard.length;
     const m = to - from;
     const assign = new Int32Array(n);
@@ -2283,47 +2287,83 @@
       this.snapshots.length = this.snapshots.findIndex((s) => s === snap) + 1;
     }
     feedOne(h) {
-      const prev = this.column;
-      const next2 = new Float32Array(this.len + 1);
-      let colMin = prev[0];
-      for (let m = 1; m <= this.len; m++) if (prev[m] < colMin) colMin = prev[m];
-      const jump = colMin + this.cfg.jumpCost;
-      const repeat = colMin + this.cfg.repeatCost;
-      const cursorAyah = this.cursorLocalWord < 0 ? -1 : this.corpus.wordAyah[this.firstWord + this.cursorLocalWord];
-      const cursorPos = this.cursorCell;
-      const hid = this.table.id(h.ch);
-      next2[0] = prev[0] + 1;
-      if (this.wordStarts[0] === 0) {
-        const r = this.ayahAtStart[0] === cursorAyah ? repeat : jump + this.jumpExtra[0];
-        if (r < next2[0]) next2[0] = r;
+      let next2, bestCell, bestCost;
+      if (typeof globalThis.nativeTrackerKernel === "function") {
+        const self = this;
+        const createKernel = globalThis.nativeTrackerKernel;
+        self.numericKernel ?? (self.numericKernel = createKernel(
+          this.ref.buffer,
+          this.wordStarts.buffer,
+          this.ayahAtStart.buffer,
+          this.jumpExtra.buffer,
+          this.table.matrix.buffer
+        ));
+        const cursorAyah = this.cursorLocalWord < 0 ? -1 : this.corpus.wordAyah[this.firstWord + this.cursorLocalWord];
+        const kernel = self.numericKernel;
+        const result = kernel(
+          this.column.buffer,
+          this.table.id(h.ch),
+          cursorAyah,
+          this.cursorCell,
+          this.cfg.jumpCost,
+          this.cfg.repeatCost
+        );
+        next2 = new Float32Array(result[0]);
+        bestCell = result[1];
+        bestCost = result[2];
       }
-      for (let m = 1; m <= this.len; m++) {
-        next2[m] = prev[m - 1] + this.table.cost(hid, this.ref[m - 1]);
-        const ins = prev[m] + 1;
-        const del = next2[m - 1] + 1;
-        if (ins < next2[m]) next2[m] = ins;
-        if (del < next2[m]) next2[m] = del;
-      }
-      for (let i = 0; i < this.wordStarts.length; i++) {
-        const m = this.wordStarts[i];
-        const restart = m <= cursorPos && this.ayahAtStart[i] === cursorAyah ? repeat : jump + this.jumpExtra[i];
-        if (restart < next2[m]) {
-          next2[m] = restart;
-          for (let j = m + 1; j <= this.len && next2[j - 1] + 1 < next2[j]; j++) {
-            next2[j] = next2[j - 1] + 1;
+      if (typeof globalThis.nativeTrackerKernel !== "function" || (this.numericChecks ?? 0) < 2) {
+        const prev = this.column;
+        const fallbackNext = new Float32Array(this.len + 1);
+        let colMin = prev[0];
+        for (let m = 1; m <= this.len; m++) if (prev[m] < colMin) colMin = prev[m];
+        const jump = colMin + this.cfg.jumpCost;
+        const repeat = colMin + this.cfg.repeatCost;
+        const cursorAyah = this.cursorLocalWord < 0 ? -1 : this.corpus.wordAyah[this.firstWord + this.cursorLocalWord];
+        const cursorPos = this.cursorCell;
+        const hid = this.table.id(h.ch);
+        fallbackNext[0] = prev[0] + 1;
+        if (this.wordStarts[0] === 0) {
+          const r = this.ayahAtStart[0] === cursorAyah ? repeat : jump + this.jumpExtra[0];
+          if (r < fallbackNext[0]) fallbackNext[0] = r;
+        }
+        for (let m = 1; m <= this.len; m++) {
+          fallbackNext[m] = prev[m - 1] + this.table.cost(hid, this.ref[m - 1]);
+          const ins = prev[m] + 1;
+          const del = fallbackNext[m - 1] + 1;
+          if (ins < fallbackNext[m]) fallbackNext[m] = ins;
+          if (del < fallbackNext[m]) fallbackNext[m] = del;
+        }
+        for (let i = 0; i < this.wordStarts.length; i++) {
+          const m = this.wordStarts[i];
+          const restart = m <= cursorPos && this.ayahAtStart[i] === cursorAyah ? repeat : jump + this.jumpExtra[i];
+          if (restart < fallbackNext[m]) {
+            fallbackNext[m] = restart;
+            for (let j = m + 1; j <= this.len && fallbackNext[j - 1] + 1 < fallbackNext[j]; j++) {
+              fallbackNext[j] = fallbackNext[j - 1] + 1;
+            }
           }
         }
-      }
-      let bestCell = 0;
-      let bestCost = next2[0];
-      let bestDist = Math.abs(0 - cursorPos);
-      for (let m = 1; m <= this.len; m++) {
-        const c = next2[m];
-        const d = Math.abs(m - cursorPos);
-        if (c < bestCost || c === bestCost && d < bestDist) {
-          bestCost = c;
-          bestCell = m;
-          bestDist = d;
+        let fallbackCell = 0;
+        let fallbackCost = fallbackNext[0];
+        let bestDist = Math.abs(0 - cursorPos);
+        for (let m = 1; m <= this.len; m++) {
+          const c = fallbackNext[m];
+          const d = Math.abs(m - cursorPos);
+          if (c < fallbackCost || c === fallbackCost && d < bestDist) {
+            fallbackCost = c;
+            fallbackCell = m;
+            bestDist = d;
+          }
+        }
+        if (typeof globalThis.nativeTrackerKernel !== "function") {
+          next2 = fallbackNext;
+          bestCell = fallbackCell;
+          bestCost = fallbackCost;
+        } else {
+          if (bestCell !== fallbackCell || bestCost !== fallbackCost || next2.length !== fallbackNext.length) throw Error("Numeric tracker cursor mismatch");
+          for (let i = 0; i < next2.length; i++) if (next2[i] !== fallbackNext[i]) throw Error("Numeric tracker column mismatch at " + i);
+          this.numericChecks = (this.numericChecks ?? 0) + 1;
         }
       }
       this.column = next2;

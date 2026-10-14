@@ -4,6 +4,7 @@ import { createHash } from 'node:crypto';
 import { readFile, mkdir, copyFile, writeFile, readdir } from 'node:fs/promises';
 import { dirname, resolve, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { numericKernelPatch } from './runtime/numeric_kernel_patch.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const upstream = join(root, 'prototype/.cache/upstream');
@@ -29,7 +30,8 @@ for (const name of ['QUICKJS_ENGINE_LICENSE', 'FLUTTER_ONNXRUNTIME_LICENSE']) {
 await build({ entryPoints: [join(root, 'tool/runtime/native_bridge.ts')],
   outfile: join(output, 'native.js'), bundle: true, format: 'iife', platform: 'neutral',
   target: ['es2020'], legalComments: 'eof',
-  alias: { '@pinned/session': join(upstream, 'packages/core/src/recitation/session.ts') } });
+  alias: { '@pinned/session': join(upstream, 'packages/core/src/recitation/session.ts') },
+  plugins: [numericKernelPatch] });
 await build({ entryPoints: [join(root, 'tool/runtime/bridge.ts')],
   outfile: join(output, 'bridge.js'), bundle: true, format: 'esm', platform: 'browser',
   target: ['es2022'], legalComments: 'eof',
@@ -50,6 +52,6 @@ for (const name of await readdir(output)) {
   artifacts.push({ name, bytes: bytes.length, sha256: createHash('sha256').update(bytes).digest('hex') });
 }
 await writeFile(join(output, 'manifest.json'), JSON.stringify({
-  upstreamCommit: baseline.upstream.commit, ortVersion: '1.24.2', quickjsVersion: '0.1.6', artifacts,
+  upstreamCommit: baseline.upstream.commit, ortVersion: '1.24.2', quickjsVersion: '0.1.6', numericKernelVersion: 'dart-f32-callback-v3', artifacts,
 }, null, 2) + '\n');
 console.log(`SDK runtime generated: ${artifacts.length} artifacts; no model/corpus/audio included.`);

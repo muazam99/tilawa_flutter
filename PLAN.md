@@ -623,7 +623,22 @@ Final audited development archive: 91 files; 13666347 uncompressed bytes; 343729
 
 ## RAM optimization goal (2026-10-13)
 
-### Latest checkpoint for resume (2026-10-13)
+### Latest checkpoint for resume (2026-10-14)
+
+Android RAM optimization is achieved on the measured Infinix X678B, saved in the owner-requested local checkpoint on master after 1e7bed9. Owner deferred iPhone again. The Android SDK default keeps native ONNX 1.24.2/recurrent tensors and pinned QuickJS matching/state/event rules, accelerating only Tracker.feedOne costs and global word alignment with compiled Dart numeric kernels. Float32 stores/tie-breaking are preserved; first tracker updates are checked against the original recurrence. Native runtime integrity now includes numericKernelVersion dart-f32-callback-v3. Original core/model/corpus pins, public API and iOS WebView behavior are retained.
+
+- Current public SDK decoder-free two-cycle profile: app-only225731KiB, steady recognition increment145207KiB (~141.8MiB), active sampled maximum174870KiB, loading229762KiB. Same-day WebView steady367959KiB:60.5% lower. Charging native baseline overhead against original R1 gives157694KiB vs366727KiB:57.0% lower, above30% target.
+- Public SDK long2:255:51.918s audio, feed38.673s/total40.221s/maxfeed737ms; all830688samples/99snapshots, exact saved hash. Private callback-v3 run37.017s/max682ms. All12 broader cases retain both saved verse references and exact progress hashes; known mixed1:2 omission remains. This is parity/throughput evidence, not improved accuracy.
+- Five-minute paced input:301.530s incl1.146s flush, all4.8Msamples, mean336.629/p95653/max677ms, stable maximum completion lag681ms. Five-minute mic:300.100s wall/299.920s PCM, all4798720samples, zero errors, sampled outstanding7680samples(one chunk), mean290.606/p95306/max361ms, flush1.038s. Five reset/recreate/disposal cycles passed. No associated renderer; settled paired appPSS263123KiB/swap161KiB. Normal cleanup/reclamation observed, not universal leak/peak/low-memory proof.
+- Archive-derived94.1MB consumer built/analyzed independently, offline with airplane enabled/Wi-Fi/data off/no current/default networks: two113:1-5/50progress/388670sample runs, reset/silence/disposal and concurrent16000/8000sample isolation passed. Public API and packaged runtime only; prior verified downloaded assets reused, not a new download test. Consumer/probe stopped and original connectivity0/1/1 restored. Private guard keeps the test foregrounded without global power changes.
+- Current public archive is101 audited files; refreshed exact size/hash in ignored numeric-v3-archive-summary.json. Dry run has no validation errors and four development warnings (uncommitted source, owner-unset URL, two exact dependency pins). Owner requested a local checkpoint commit; no publication/push. Source/runtime files used by isolated consumer match the current SDK; its extra diagnostic PCM/entry point are outside the archive.
+- Rejected hybrid steady saving24.9%; hybrid arena297256.5KiB was worse and its source knobs were removed. Early numeric callback run serialized the tracker receiver; bare callbacks fixed that. Numeric-only JSInvokable avoids generic wrapper per-byte reference traversal. Same-define Gradle stale AOT was caught before installation; only verified generated release outputs were regenerated and current marker checked.
+
+Android optimization objective is complete for this measured device. Remaining full-release gates are physical iPhone (deferred), physical input routes/native fault coverage,16KB/low-memory-device verification, acceptance of known recognition limits, repository/publisher/final version and owner review. No additional sustained rerun is needed absent a relevant change. Next session inspect Git/PLAN and refresh only affected checks if source changes; publication and Qiyam integration remain separate actions.
+
+Raw ignored evidence: sdk-numeric-v3-check-20261014-a, sdk-numeric-v3-resources-20261014-a, sdk-numeric-v3-consumer-offline-20261014-a and sdk-numeric-v3-broader-parity-summary.json. Private APKs/PCM/audio/consumer scratch remain excluded.
+
+Prior checkpoint:
 
 Owner requested a local checkpoint commit before further work. Optimization is incomplete. Android's current source default is the native ONNX/QuickJS candidate; it is not accepted for release. iOS remains provisional WebView.
 

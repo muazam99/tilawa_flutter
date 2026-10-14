@@ -9,6 +9,7 @@ import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 
 import '../adapter.dart';
 import '../models.dart';
+import 'numeric_kernels.dart';
 
 final class NativeCoreAdapter implements TilawaEngineAdapter {
   NativeCoreAdapter(this.sink);
@@ -27,7 +28,7 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
   @override
   String get id => 'native-ort-quickjs';
   @override
-  String get version => 'ort-1.24.2-quickjs-ng0140';
+  String get version => 'ort-1.24.2-quickjs-ng0140-dart-f32-callback-v3';
   @override
   TilawaCapabilities get capabilities => TilawaCapabilities(
     observations: {
@@ -65,6 +66,7 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
     await resetStates();
     if (!matching) return;
     js = QuickJsRuntime2(stackSize: 1024 * 1024);
+    installPinnedNumericKernels(js!);
     js!.onMessage('nativeProbe', (dynamic message) {
       final data = Map<String, dynamic>.from(message as Map);
       if (data['kind'] == 'event') {

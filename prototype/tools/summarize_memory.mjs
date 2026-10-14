@@ -32,12 +32,13 @@ for (const label of labels) {
   const active = valid.filter(r => /^profile-\d+-(ready|processing|steady|reset)$/.test(r.stage));
   const loading = valid.filter(r => /^profile-\d+-opening$/.test(r.stage));
   const passages = [...events.matchAll(/TILAWA_PERF PASSAGE (\{.*\})/g)].map(m=>JSON.parse(m[1]));
+  const profilePassages = passages.filter(p=>p.id.startsWith('profile-'));
   const opens = [...events.matchAll(/TILAWA_PERF PROFILE_OPEN (\{.*\})/g)].map(m=>JSON.parse(m[1]));
   const progressFingerprints = [...events.matchAll(/TILAWA_PERF PROGRESS_FINGERPRINT (\{.*\})/g)].map(m=>JSON.parse(m[1]));
   const result = {label, completed: events.includes('TILAWA_PERF COMPLETE '),
     failed: events.includes('TILAWA_PERF ERROR '), baselineKiB: baseline,
-    recognitionEvidenceComplete: opens.length > 0 && passages.length === opens.length &&
-      passages.every(p => p.expectedSequence && p.finalization === 'complete' && p.processedSamples === p.inputSamples),
+    recognitionEvidenceComplete: opens.length > 0 && profilePassages.length === opens.length &&
+      profilePassages.every(p => p.expectedSequence && p.finalization === 'complete' && p.processedSamples === p.inputSamples),
     progressFingerprints,
     steadyIncrementKiB: median(steady.map(total)) === null ? null : median(steady.map(total)) - baseline,
     activeSampledMaxIncrementKiB: active.length ? Math.max(...active.map(total)) - baseline : null,

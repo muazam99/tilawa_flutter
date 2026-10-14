@@ -2,7 +2,7 @@
 
 Independent Flutter integration for Tilawa's offline Zipformer Quran recognition. This is a development SDK, not a published package. Android device checks cover recognition, tracking, offline setup and recovery. Physical route/renderer/native cleanup and platform/resource gates remain open. Authored code is MIT licensed; third-party and asset terms are listed in [NOTICE.md](NOTICE.md). Final runtime selection remains under review.
 
-Five-minute Android paced input and foreground capture completed. Broader fixtures exposed mixed-passage omissions, and recreation produced a material renderer-memory spike. These are device-specific development checkpoints, not full-Quran accuracy, leak-free cleanup or final runtime/resource acceptance.
+Current Android native checks include five-minute paced input, five-minute foreground capture and five reset/disposal cycles. Broader fixtures retain the known mixed-passage omissions. Earlier WebView recreation produced a material renderer-memory spike. These are device-specific development checkpoints, not full-Quran accuracy, leak-free cleanup or final release acceptance.
 
 Android checks do not establish iOS support or close deferred fault/resource gates. See [API_CONTRACT.md](API_CONTRACT.md) and [example evidence](example/README.md) for contract details and verification limits.
 
@@ -30,9 +30,10 @@ about 14 MB. These are asset sizes, not the installed application's memory cost.
 The Android native default replaces the prior WebView recognition backend, whose
 recreation checks sampled over 1 GiB of renderer memory. Native development checks
 show substantially lower added recognition RAM with the same model and matching
-core. Five-minute paced and microphone checks passed, but long-ayah feeding in
-the QuickJS candidate is slower than incoming audio. Runtime acceptance remains
-open while native inference with browser matching is evaluated. Device samples are
+rules. Compiled numeric tracker/alignment kernels preserve float32 rounding and
+tie-breaking while removing the long-ayah throughput regression. On the measured
+Android phone, added steady recognition PSS was about 142 MiB versus 359 MiB for
+WebView, and 51.9 seconds of long-ayah audio processed in 40.2 seconds. Device samples are
 not worst-case memory bounds. Prefer one active session and reset it between runs
 when healthy.
 
@@ -77,7 +78,8 @@ try {
 Stop is terminal/idempotent. Reset starts another run using the same healthy runtime; dispose releases it without implicit finalization. Interrupt attempts bounded finalization and explicitly distinguishes incomplete output from an empty recognized sequence. Quarantined/failed runtimes require a new session. There is no five-minute SDK limit.
 
 The Android development default uses native ONNX Runtime 1.24.2 for inference and
-the pinned Tilawa matching core in a QuickJS worker isolate. Recurrent tensors stay
+the pinned Tilawa matching core in a QuickJS worker isolate, with two compiled
+Dart numeric kernels for tracker costs and word alignment. Recurrent tensors stay
 native; each session owns its model, state and worker. Dispose waits for actual
 native cleanup before releasing asset leases. The package supplies ONNX JNI R8
 keep rules and checks the native runtime version. iOS retains the provisional

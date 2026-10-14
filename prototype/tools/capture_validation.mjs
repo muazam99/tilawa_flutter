@@ -9,6 +9,8 @@ const label = process.argv[3];
 if (!adb || !/^[a-z0-9-]+$/.test(label ?? '')) throw new Error('Usage: node capture_validation.mjs <adb-executable> <label>');
 const intervalSeconds = Number(process.argv[4] ?? 30);
 const deadlineSeconds = Number(process.argv[5] ?? 900);
+const targetPackage = process.argv[7] === 'package'
+  ? 'dev.tilawa.tilawa_flutter_package_check' : 'dev.qiyam.tilawa_bridge_probe';
 if (!Number.isInteger(intervalSeconds) || intervalSeconds < 1 || intervalSeconds > 30 ||
     !Number.isInteger(deadlineSeconds) || deadlineSeconds < 60 || deadlineSeconds > 900) {
   throw new Error('Sampling interval must be1..30s and deadline60..900s');
@@ -71,12 +73,12 @@ async function sample() {
   const sampledStage = stage;
   const startedAt = new Date().toISOString();
   try {
-    const appPid = command('shell', 'pidof', 'dev.qiyam.tilawa_bridge_probe');
+    const appPid = command('shell', 'pidof', targetPackage);
     if (!/^\d+$/.test(appPid)) throw new Error('Probe not running');
-    const services = command('shell', 'dumpsys', 'activity', 'services', 'dev.qiyam.tilawa_bridge_probe');
+    const services = command('shell', 'dumpsys', 'activity', 'services', targetPackage);
     const associated = new Map();
     for (const block of services.split(/(?=\* ServiceRecord)/)) {
-      if (!block.includes('dev.qiyam.tilawa_bridge_probe')) continue;
+      if (!block.includes(targetPackage)) continue;
       for (const match of block.matchAll(/app=ProcessRecord\{[^}]*? (\d+):([^/}\s]+)/g)) {
         if (match[2].includes('sandboxed_process')) associated.set(match[1], match[2]);
       }
@@ -106,9 +108,12 @@ async function sample() {
   } finally { sampling = false; }
 }
 if (process.argv[6] === 'launch') {
-  command('shell', 'am', 'force-stop', 'dev.qiyam.tilawa_bridge_probe');
+  command('shell', 'am', 'force-stop', targetPackage);
   command('logcat', '-c');
-  command('shell', 'am', 'start', '-n', 'dev.qiyam.tilawa_bridge_probe/.MainActivity');
+  const activity = command('shell','cmd','package','resolve-activity','--brief',targetPackage)
+    .split(/\r?\n/).find(line=>/^\S+\/\S+$/.test(line));
+  if (!activity) throw Error('No resolved launcher activity for '+targetPackage);
+  command('shell', 'am', 'start', '-n', activity);
 }
 const logcat = spawn(adb, ['logcat', '-v', 'threadtime', '-s', 'flutter'], { stdio: ['ignore', 'pipe', 'pipe'] });
 let buffer = '';
@@ -130,7 +135,7 @@ logcat.stdout.on('data', (chunk) => {
   const lines = buffer.split('\n');
   buffer = lines.pop();
   for (const line of lines) {
-    if (!line.includes('TILAWA_PERF ') && !line.includes('TILAWA_NATIVE_STATS ')) continue;
+    if (!line.includes('TILAWA_PERF ') && !line.includes('TILAWA_NATIVE_STATS ') && !line.includes('TILAWA_PACKAGE ')) continue;
     writes = writes.then(() => appendFile(logFile, line + '\n'));
     console.log(line);
     const checkpoint = line.match(/TILAWA_PERF MEMORY (\{.*\})/);
@@ -138,7 +143,7 @@ logcat.stdout.on('data', (chunk) => {
       stage = JSON.parse(checkpoint[1]).stage;
       void sample();
     }
-    if (/TILAWA_PERF (COMPLETE|ERROR) /.test(line)) finish();
+    if (/TILAWA_(PERF|PACKAGE) (COMPLETE|ERROR) /.test(line)) finish();
   }
 });
 logcat.on('error', (error) => { console.error(error); finish(); });

@@ -2,6 +2,7 @@
   "upstreamCommit": "2f2617460dc4a6b967e0cc49fa04804bbf22ec69",
   "ortVersion": "1.24.2",
   "quickjsVersion": "0.1.6",
+  "numericKernelVersion": "dart-f32-callback-v3",
   "artifacts": [
     {
       "name": "bridge.js",
@@ -20,8 +21,8 @@
     },
     {
       "name": "native.js",
-      "bytes": 644378,
-      "sha256": "a8d9fb5bc45d2d6779ba7fb580367081fdc8c4713cc63049ebea71f2cfc3c659"
+      "bytes": 646406,
+      "sha256": "bb93c05bbe5843b3ae61a97e14b4116f9ea2d488cf7a35429a705a22cbeca689"
     },
     {
       "name": "NPL-1.2.txt",

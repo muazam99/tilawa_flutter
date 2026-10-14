@@ -103,7 +103,12 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
         for (final file in TilawaAssetManifest.zipformerV1().files)
           file.name: 'assets/runtime/${file.name}',
       }).completed;
-      if (mode == 'broader') {
+      if (mode == 'sdk-optimized-check') {
+        await memoryProfile(assets);
+        await sample('optimized-before-broader');
+        await broader(assets);
+        await sample('optimized-after-broader-dispose');
+      } else if (mode == 'broader') {
         await broader(assets);
       } else if (mode == 'resources' ||
           mode.startsWith('resources-native') ||
@@ -119,6 +124,19 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
         await reuseRecognition(assets);
       } else if (mode == 'memory-profile') {
         await memoryProfile(assets);
+        if (const bool.fromEnvironment('PROBE_KERNEL_LONG_FOLLOWUP')) {
+          final pcm = await load('assets/runtime/validation_ref_002255.audio');
+          session = await TilawaSession.open(
+            assets: assets,
+            config: const TilawaRecognitionConfig(diagnostics: true),
+            adapterFactory: const NativeWorkerProbeFactory(),
+          );
+          await passage('kernel-followup-002255', pcm, [
+            [
+              {'surah': 2, 'ayah': 255},
+            ],
+          ]);
+        }
       } else if (mode.startsWith('throughput-long')) {
         final pcm = await load('assets/runtime/validation_ref_002255.audio');
         session = await TilawaSession.open(
@@ -126,6 +144,8 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
           config: const TilawaRecognitionConfig(diagnostics: true),
           adapterFactory: mode.endsWith('hybrid')
               ? const HybridProbeFactory()
+              : mode.endsWith('kernel')
+              ? const NativeWorkerProbeFactory()
               : mode.endsWith('tuned')
               ? const TilawaNativeAdapterFactory(
                   intraOpNumThreads: 2,
@@ -461,7 +481,7 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
             ? const HybridProbeFactory()
             : variant.startsWith('sdk-native')
             ? null
-            : variant == 'native-worker'
+            : variant == 'native-worker' || variant == 'native-kernel'
             ? const NativeWorkerProbeFactory()
             : variant.startsWith('native')
             ? const NativeProbeFactory()
@@ -471,6 +491,7 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
         'cycle': cycle,
         'elapsedMs': clock.elapsedMilliseconds,
         'adapterId': session!.info.adapterId,
+        'adapterVersion': session!.info.adapterVersion,
       });
       await sample('profile-$cycle-ready');
       await Future<void>.delayed(const Duration(seconds: 8));

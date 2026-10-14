@@ -11,6 +11,7 @@ import '../adapter.dart';
 import '../assets.dart';
 import '../models.dart';
 import 'native_core.dart';
+import 'numeric_kernels.dart';
 
 final class TilawaNativeAdapterFactory implements TilawaEngineAdapterFactory {
   const TilawaNativeAdapterFactory({
@@ -73,6 +74,7 @@ final class TilawaNativeAdapterFactory implements TilawaEngineAdapterFactory {
               as Map;
       if (runtime['upstreamCommit'] != tilawaUpstreamCommit ||
           runtime['ortVersion'] != version ||
+          runtime['numericKernelVersion'] != nativeNumericKernelVersion ||
           runtime['quickjsVersion'] != '0.1.6') {
         throw const TilawaException(
           'incompatibleAssets',
@@ -146,7 +148,7 @@ final class _WorkerAdapter implements TilawaEngineAdapter {
   @override
   String get id => 'native-ort-quickjs-worker';
   @override
-  String get version => 'ort-1.24.2-quickjs-ng0140';
+  String get version => 'ort-1.24.2-quickjs-ng0140-$nativeNumericKernelVersion';
   @override
   TilawaCapabilities get capabilities => TilawaCapabilities(
     observations: {

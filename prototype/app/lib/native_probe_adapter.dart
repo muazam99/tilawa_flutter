@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:quickjs_engine/quickjs_engine.dart';
 import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 import 'package:tilawa_flutter/tilawa_flutter.dart';
+import 'tracker_kernel.dart';
 
 final class NativeProbeFactory implements TilawaEngineAdapterFactory {
   const NativeProbeFactory();
@@ -87,6 +88,12 @@ final class NativeProbeAdapter implements TilawaEngineAdapter {
     );
     await resetStates();
     js = QuickJsRuntime2(stackSize: 1024 * 1024);
+    if (const bool.fromEnvironment('PROBE_TRACKER_ACCELERATION')) {
+      installPinnedNumericKernels(js!);
+      debugPrint(
+        'TILAWA_PERF KERNEL_BOOT {"version":"$nativeNumericKernelVersion"}',
+      );
+    }
     js!.onMessage('nativeProbe', (dynamic message) {
       final data = Map<String, dynamic>.from(message as Map);
       if (data['kind'] == 'event') {
