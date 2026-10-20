@@ -5873,10 +5873,10 @@ var VerdictTracer = class {
       const pausal = pausalPhonemes(exp, t.corpus.plain[globalWord], atAyahEnd);
       let expUsed = exp;
       if (distance2 > this.cfg.okDistance && pausal) {
-        const stop = stopBoundary(t.heard, from, to2, this.cfg.settleFrames);
-        if (stop >= 0) {
-          if (stop !== to2) {
-            to2 = stop;
+        const stop2 = stopBoundary(t.heard, from, to2, this.cfg.settleFrames);
+        if (stop2 >= 0) {
+          if (stop2 !== to2) {
+            to2 = stop2;
             heardSlice = sliceHeard(t.heard, from, to2);
           }
           const d2 = normalizedDistance(
@@ -10180,6 +10180,128 @@ function createZipformerSession(opts) {
   return ZipformerSession.create(opts);
 }
 
+// tool/runtime/correction.ts
+function setExpected(session2, value) {
+  if (value == null) {
+    session2.setExpected(null);
+    return;
+  }
+  const passage = value;
+  const { surah, ayah } = passage;
+  const end = passage.ayahEnd ?? ayah;
+  if (!Number.isInteger(surah) || surah < 1 || surah > 114 || !Number.isInteger(ayah) || ayah < 1 || !Number.isInteger(end) || end < ayah || !(session2.wordCount(surah, ayah) > 0) || !(session2.wordCount(surah, end) > 0)) {
+    throw new Error("Expected passage outside pinned corpus");
+  }
+  session2.setExpected({ surah, ayah, ayahEnd: end });
+}
+function correct(session2, value) {
+  const action = value;
+  const phase = session2.correction.state.phase;
+  const allowed = action === "retry" ? phase === "error" || phase === "corrected" : action === "stop_retry" ? phase === "retrying" : action === "dismiss" ? phase === "error" : action === "continue" ? phase === "corrected" : action === "review_later" || action === "close" ? phase !== "idle" : false;
+  if (!allowed) throw new Error("Correction action is not valid in this phase");
+  session2.correct(action);
+}
+function deferOpenIssues(session2) {
+  while (session2.correction.state.phase !== "idle") {
+    const attempt = session2.correction.state.attempt;
+    session2.correct("close");
+    if (session2.correction.state.attempt <= attempt) throw new Error("Correction did not advance");
+  }
+}
+async function stop(session2, afterFlush = () => {
+}) {
+  deferOpenIssues(session2);
+  await session2.stop();
+  afterFlush();
+  deferOpenIssues(session2);
+}
+function structuralOptions(value) {
+  return value === "onStop" || value === "onPause" ? {
+    ayahOrder: "guarded",
+    similarVerse: true,
+    timing: value === "onPause" ? "pause" : "stop"
+  } : false;
+}
+var WordEvidencePublisher = class {
+  constructor(enabled, emit, corpus) {
+    this.enabled = enabled;
+    this.emit = emit;
+    this.corpus = corpus;
+  }
+  revision = 0;
+  signature = "";
+  passage = null;
+  prefixKey = "";
+  prefixEvidence = null;
+  setExpected(passage) {
+    this.passage = passage;
+    this.prefixKey = "";
+    this.prefixEvidence = null;
+  }
+  startingEvidence(transcript) {
+    if (!this.passage || !this.corpus) return null;
+    const table = costTable();
+    const stripped = stripPreambles(transcript, table);
+    const rest = transcript.slice(stripped.offset);
+    if (preamblePending(rest, table) || rest.length < 20) return null;
+    const query = rest.slice(0, 32);
+    if (this.prefixKey === query) return this.prefixEvidence;
+    this.prefixKey = query;
+    const { surah, ayah, ayahEnd = ayah } = this.passage;
+    const verses = this.corpus.surahs[surah - 1].ayahs;
+    const q = table.encode(query);
+    const fit = (start) => {
+      let reference = "";
+      for (let a = start - 1; a < verses.length && reference.length < 40; a++) {
+        reference += verses[a].w.map((w) => w[1]).join("");
+      }
+      reference = reference.slice(0, 40);
+      let distance2 = Infinity;
+      for (let len = Math.max(1, Math.floor(query.length * 0.8)); len <= Math.min(reference.length, Math.ceil(query.length * 1.2)); len++) {
+        distance2 = Math.min(distance2, normalizedDistance(q, table.encode(reference.slice(0, len)), table));
+      }
+      return distance2;
+    };
+    const expectedDistance = fit(ayah);
+    let laterAyah = ayah, laterDistance = Infinity;
+    for (let a = ayah + 1; a <= Math.min(verses.length, ayahEnd, ayah + 3); a++) {
+      const distance2 = fit(a);
+      if (distance2 < laterDistance) {
+        laterAyah = a;
+        laterDistance = distance2;
+      }
+    }
+    return this.prefixEvidence = Number.isFinite(expectedDistance) && Number.isFinite(laterDistance) ? { surah, ayah: laterAyah, expected_distance: expectedDistance, later_distance: laterDistance, phonemes: query.length } : null;
+  }
+  publish(session2, audioEnded = false) {
+    if (!this.enabled) return;
+    const words = session2.verdicts().map((v) => {
+      const copy = { ...v };
+      for (const key of ["gop", "gopNone", "gopTwice", "repGain", "pairGop", "slip"]) {
+        if (!Number.isFinite(copy[key])) delete copy[key];
+      }
+      return copy;
+    });
+    const data = {
+      attempt: session2.correction.state.attempt,
+      phoneme_count: session2.transcript.length,
+      audio_ended: audioEnded,
+      words,
+      start_comparison: this.startingEvidence(session2.transcript)
+    };
+    const signature = JSON.stringify(data);
+    if (signature === this.signature) return;
+    this.signature = signature;
+    this.emit({ type: "word_evidence", revision: ++this.revision, ...data });
+  }
+  reset() {
+    this.revision = 0;
+    this.signature = "";
+    this.prefixKey = "";
+    this.prefixEvidence = null;
+  }
+};
+
 // tool/runtime/bridge.ts
 var session = null;
 var runtime = null;
@@ -10188,6 +10310,7 @@ var sequence = null;
 var score = null;
 var queue = Promise.resolve();
 var epoch = "";
+var evidence;
 var post = (value) => window.TilawaSdk.postMessage(JSON.stringify(value));
 var local = async (name) => {
   const response = await fetch(new URL(name, location.href));
@@ -10203,7 +10326,8 @@ var snapshot = () => ({
   state: ready().engineState,
   transcript: ready().transcript,
   sequence,
-  score
+  score,
+  correction: ready().correction.state
 });
 async function dispatch(method, data = {}) {
   switch (method) {
@@ -10242,7 +10366,7 @@ async function dispatch(method, data = {}) {
         Tensor: de,
         corpus,
         io: io2,
-        structural: false,
+        structural: structuralOptions(data.structuralCorrection),
         slipHead: false,
         minWordFraction: Number(data.minWordFraction),
         enableFallback: data.enableFallback === true,
@@ -10258,7 +10382,14 @@ async function dispatch(method, data = {}) {
           post({ kind: "event", epoch, event });
         }
       });
-      session.setMode("tracking");
+      session.setMode(data.mode === "correction" ? "correction" : "tracking");
+      setExpected(session, data.expectedPassage);
+      evidence = new WordEvidencePublisher(
+        data.wordEvidence === true,
+        (event) => post({ kind: "event", epoch, event }),
+        corpus
+      );
+      evidence.setExpected(data.expectedPassage);
       samples = 0;
       sequence = null;
       score = null;
@@ -10270,27 +10401,41 @@ async function dispatch(method, data = {}) {
       const view = new DataView(bytes.buffer);
       const pcm = new Float32Array(bytes.length / 4);
       for (let i = 0; i < pcm.length; i++) pcm[i] = view.getFloat32(i * 4, true);
-      await ready().feed(pcm);
+      if (ready().correction.state.phase === "error" || ready().correction.state.phase === "corrected") {
+        post({ kind: "event", epoch, event: {
+          type: "audio_discarded",
+          samples: pcm.length,
+          reason: "correction_awaiting_action"
+        } });
+      } else await ready().feed(pcm);
       samples += pcm.length;
+      evidence.publish(ready());
       return snapshot();
     }
     case "stop":
-      await ready().stop();
+      evidence.publish(ready());
+      await stop(ready(), () => evidence.publish(ready(), true));
       return snapshot();
     case "reset":
       ready().reset();
+      evidence.reset();
       samples = 0;
       sequence = null;
       score = null;
       return snapshot();
+    case "setExpected":
+      setExpected(ready(), data.passage);
+      evidence.setExpected(data.passage);
+      return snapshot();
+    case "correct":
+      correct(ready(), data.action);
+      evidence.publish(ready());
+      return snapshot();
     case "wordCount": {
       const surah = Number(data.surah), ayah = Number(data.ayah);
-      if (!Number.isInteger(surah) || !Number.isInteger(ayah) || surah < 1 || surah > 114 || ayah < 1) {
-        throw new Error("Invalid Quran reference");
-      }
+      if (!Number.isInteger(surah) || !Number.isInteger(ayah) || surah < 1 || surah > 114 || ayah < 1) return { words: 0 };
       const words = ready().wordCount(surah, ayah);
-      if (!Number.isInteger(words) || words <= 0) throw new Error("Ayah not in the pinned corpus");
-      return { words };
+      return { words: Number.isInteger(words) && words > 0 ? words : 0 };
     }
     case "dispose": {
       session = null;

@@ -131,7 +131,8 @@ final class TilawaNativeAdapterFactory implements TilawaEngineAdapterFactory {
   }
 }
 
-final class _WorkerAdapter implements TilawaEngineAdapter {
+final class _WorkerAdapter
+    implements TilawaEngineAdapter, TilawaCorrectionAdapter {
   _WorkerAdapter(this.sink) {
     ready.future.ignore();
     port.listen(receive);
@@ -158,7 +159,14 @@ final class _WorkerAdapter implements TilawaEngineAdapter {
       'raw_transcript',
       'final_sequence',
       'debug',
+      'correction',
+      'correction_note',
+      'audio_discarded',
+      'word_evidence',
     },
+    correction: true,
+    wordEvidence: true,
+    structuralCorrection: true,
   );
   void receive(dynamic message) {
     if (message == null || message is List) {
@@ -233,6 +241,13 @@ final class _WorkerAdapter implements TilawaEngineAdapter {
   Future<TilawaEngineSnapshot> reset() async =>
       await call('reset') as TilawaEngineSnapshot;
   @override
+  Future<TilawaEngineSnapshot> setExpectedPassage(
+    TilawaExpectedPassage? passage,
+  ) async => await call('setExpected', passage) as TilawaEngineSnapshot;
+  @override
+  Future<TilawaEngineSnapshot> correct(TilawaCorrectionAction action) async =>
+      await call('correct', action) as TilawaEngineSnapshot;
+  @override
   Future<int> describeAyah(TilawaAyahRef ayah) async =>
       await call('wordCount', ayah) as int;
   @override
@@ -298,6 +313,14 @@ Future<void> _workerEntry(List<Object?> args) async {
             result = await core.stop();
           case 'reset':
             result = await core.reset();
+          case 'setExpected':
+            result = await core.setExpectedPassage(
+              message['data'] as TilawaExpectedPassage?,
+            );
+          case 'correct':
+            result = await core.correct(
+              message['data'] as TilawaCorrectionAction,
+            );
           case 'wordCount':
             result = await core.describeAyah(message['data'] as TilawaAyahRef);
           case 'dispose':

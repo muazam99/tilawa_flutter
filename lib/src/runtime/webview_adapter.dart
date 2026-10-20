@@ -12,6 +12,7 @@ import 'package:webview_flutter/webview_flutter.dart';
 import '../adapter.dart';
 import '../assets.dart';
 import '../models.dart';
+import 'correction_protocol.dart';
 
 final class TilawaWebViewAdapterFactory implements TilawaEngineAdapterFactory {
   const TilawaWebViewAdapterFactory({
@@ -64,7 +65,8 @@ final class TilawaWebViewAdapterFactory implements TilawaEngineAdapterFactory {
   }
 }
 
-final class _WebViewAdapter implements TilawaEngineAdapter {
+final class _WebViewAdapter
+    implements TilawaEngineAdapter, TilawaCorrectionAdapter {
   _WebViewAdapter(this._sink, this._disposeController, this._sessionOptions);
   final TilawaObservationSink _sink;
   final Future<void> Function(WebViewController)? _disposeController;
@@ -96,7 +98,14 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
       'raw_transcript',
       'final_sequence',
       'debug',
+      'correction',
+      'correction_note',
+      'audio_discarded',
+      'word_evidence',
     },
+    correction: true,
+    wordEvidence: true,
+    structuralCorrection: true,
   );
 
   Future<void> initialize(
@@ -269,11 +278,15 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
     await _call('initialize', {
       if (_sessionOptions != null) 'sessionOptions': _sessionOptions,
       'minWordFraction': config.minWordFraction,
-      'enableFallback': config.enableFallback,
+      'enableFallback': config.effectiveFallback,
       'fallbackMaxDistance': config.fallbackMaxDistance,
       'stayOnSurah': config.stayOnSurah,
       'tailSeconds': config.tailDuration.inMicroseconds / 1000000,
       'debug': config.diagnostics,
+      'mode': config.mode.name,
+      'expectedPassage': expectedPassageData(config.expectedPassage),
+      'wordEvidence': config.wordEvidence,
+      'structuralCorrection': config.structuralCorrection.name,
     });
   }
 
@@ -379,6 +392,7 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
           ? TilawaTrackingState.searching
           : TilawaTrackingState.unknown,
       transcript: result['transcript'] as String,
+      correction: parseCorrectionState(result['correction']),
       score: (result['score'] as num?)?.toDouble(),
       sequence: (result['sequence'] as List?)?.map((item) {
         final verse = item as Map;
@@ -405,6 +419,17 @@ final class _WebViewAdapter implements TilawaEngineAdapter {
   Future<TilawaEngineSnapshot> stop() async => _snapshot(await _call('stop'));
   @override
   Future<TilawaEngineSnapshot> reset() async => _snapshot(await _call('reset'));
+  @override
+  Future<TilawaEngineSnapshot> setExpectedPassage(
+    TilawaExpectedPassage? passage,
+  ) async => _snapshot(
+    await _call('setExpected', {'passage': expectedPassageData(passage)}),
+  );
+  @override
+  Future<TilawaEngineSnapshot> correct(TilawaCorrectionAction action) async =>
+      _snapshot(
+        await _call('correct', {'action': correctionActionName(action)}),
+      );
   @override
   Future<int> describeAyah(TilawaAyahRef ayah) async =>
       (await _call('wordCount', {

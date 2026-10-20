@@ -10,8 +10,10 @@ import 'package:flutter_onnxruntime/flutter_onnxruntime.dart';
 import '../adapter.dart';
 import '../models.dart';
 import 'numeric_kernels.dart';
+import 'correction_protocol.dart';
 
-final class NativeCoreAdapter implements TilawaEngineAdapter {
+final class NativeCoreAdapter
+    implements TilawaEngineAdapter, TilawaCorrectionAdapter {
   NativeCoreAdapter(this.sink);
   final TilawaObservationSink sink;
   JavascriptRuntime? js;
@@ -25,6 +27,7 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
   int nextOperation = 0;
 
   bool closed = false;
+  bool _nativeStateDirty = false;
   @override
   String get id => 'native-ort-quickjs';
   @override
@@ -38,7 +41,14 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
       'raw_transcript',
       'final_sequence',
       'debug',
+      'correction',
+      'correction_note',
+      'audio_discarded',
+      'word_evidence',
     },
+    correction: true,
+    wordEvidence: true,
+    structuralCorrection: true,
   );
   Future<void> initializeFiles(
     Map<String, File> files,
@@ -111,15 +121,20 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
       'corpus': jsonDecode(await files['corpus.json']!.readAsString()),
       'io': io,
       'minWordFraction': config.minWordFraction,
-      'enableFallback': config.enableFallback,
+      'enableFallback': config.effectiveFallback,
       'fallbackMaxDistance': config.fallbackMaxDistance,
       'stayOnSurah': config.stayOnSurah,
       'tailSeconds': config.tailDuration.inMicroseconds / 1000000,
       'debug': config.diagnostics,
+      'mode': config.mode.name,
+      'expectedPassage': expectedPassageData(config.expectedPassage),
+      'wordEvidence': config.wordEvidence,
+      'structuralCorrection': config.structuralCorrection.name,
     });
   }
 
   Future<void> resetStates() async {
+    _nativeStateDirty = false;
     final old = states;
     states = {};
     await Future.wait(old.values.map(releaseTensor));
@@ -150,6 +165,7 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
     OrtValue? x;
     Map<String, OrtValue> outputs = {};
     try {
+      if (data['reset'] == true && _nativeStateDirty) await resetStates();
       x = await OrtValue.fromList(
         Float32List.fromList(
           (data['x'] as List).map((n) => (n as num).toDouble()).toList(),
@@ -159,6 +175,7 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
       ownedTensors.add(x);
 
       outputs = await ort!.run({'x': x, ...states});
+      _nativeStateDirty = true;
       ownedTensors.addAll(outputs.values);
 
       final logits = outputs['log_probs']!;
@@ -258,6 +275,7 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
             ? TilawaTrackingState.searching
             : TilawaTrackingState.unknown,
         transcript: value['transcript'] as String,
+        correction: parseCorrectionState(value['correction']),
         score: (value['score'] as num?)?.toDouble(),
         sequence: (value['sequence'] as List?)?.map(
           (x) => TilawaSequenceVerse(
@@ -278,6 +296,17 @@ final class NativeCoreAdapter implements TilawaEngineAdapter {
 
     return snapshot(await call('reset'));
   }
+
+  @override
+  Future<TilawaEngineSnapshot> setExpectedPassage(
+    TilawaExpectedPassage? passage,
+  ) async => snapshot(
+    await call('setExpected', {'passage': expectedPassageData(passage)}),
+  );
+
+  @override
+  Future<TilawaEngineSnapshot> correct(TilawaCorrectionAction action) async =>
+      snapshot(await call('correct', {'action': correctionActionName(action)}));
 
   @override
   Future<int> describeAyah(TilawaAyahRef ayah) async =>

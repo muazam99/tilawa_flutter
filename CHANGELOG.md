@@ -1,5 +1,15 @@
 ## 0.1.0-dev.1
 
+* Add opt-in structural correction checks and revision-scoped replacement word
+  evidence. Experimental passage-start assessment uses independent decoded-prefix
+  comparisons, not cursor position. Real-recitation calibration remains pending.
+
+* Expose pinned upstream correction mode, expected passages, typed issue/note
+  events and run/attempt-fenced retry actions. Tracking remains the default.
+  Correction accuracy and lifecycle/device acceptance are not yet validated.
+* Preserve terminal Stop with an open correction and explicitly report audio
+  drained while awaiting an action. Native recurrent state follows core resets.
+
 * Initial development SDK for offline Tilawa recognition and word tracking.
 * Typed session events, bounded external PCM input and optional microphone capture.
 * Verified local, bundled and downloaded recognition assets.

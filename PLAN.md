@@ -1,12 +1,22 @@
 # Plan: Tilawa Flutter SDK
 
-**Status:** Android development continuation complete on 2026-10-13 after 7036940/master; current edits are uncommitted. Corrected idle-realm callback ownership passes normal-release recreation, recognition/reuse/expiry and concurrent sample isolation. Owner chose MIT, unset URLs and provisional WebView runtime. Public docs/package exclusions, isolated fresh-download/offline/capture consumer and dry run completed. iPhone, physical routes/native renderer faults, 16KB-device and final resource/recognition acceptance remain release gates. No publication, commit or push.
+**Status:** 2026-10-15 upstream correction V2candidate uncommitted on master after07a46de. Runtime regenerated/pins verified. SDK analyzer and23Dart+11Node controlled tests pass incl pinned-engine clean/skipped opening snapshots through Dartmonitor. Opt-in structural/word evidence +independent prefix/start assessment. Owner-approved Tadabbur fresh123.8sprofile verified current bundles/v2AOT and installed-r/data retained; screenoff-or-locked prevented postinstallvisualcheck, no v2mic/accuracyacceptance. Normal reader unchanged. Production integration, calibration and initialization optimization pending. No commit/push/publication.
 **Created:** 2026-10-12
-**Last updated:** 2026-10-13
+**Last updated:** 2026-10-15
 **Package working name:** `tilawa_flutter`
 **Components:** Independent public Flutter SDK, standalone example app, future Qiyam consumer.
 **Initial platforms:** Android and iOS 16+.
-**Current phase:** Phase5E/5F development preparation and 5G provisional handoff recorded below. Full Phase5 release completion remains blocked by intended-platform/native/resource gates.
+**Current phase:** Owner-approved upstream correction extension, first source-integration slice. See API_CONTRACT section 12 and README correction workflow. Detailed word verdicts, real-recitation validation, startup measurements/optimization and consumer integration follow separately. Full release still has deferred platform/native/resource gates.
+
+2026-10-15 follow-up: owner-tested v1 exposed missed next-ayah starts. V2 source
+adds opt-in guarded structural checks, replacement word verdict evidence and an
+experimental independent-prefix/clear-word start monitor.23Dart+11Node tests pass,
+including pinned-engine synthetic clean/skipped evidence through the Dart monitor;
+not real-audio accuracy proof. Diagnostic UI now has plain start assessments and
+issue history. First V2profile build reused stale v1artifacts (notinstalled);
+fresh123.8s scoped rebuild verified current bundles/v2AOT, installed-r successfully.
+Postlaunch screenoff-or-locked; owner visual/realrecitation validation pending.
+Production reader unchanged.
 
 ## 1. Goal
 
@@ -25,7 +35,7 @@ This document is the portable implementation and handoff reference. A new sessio
 | Platforms for the first release | Android and iOS |
 | Minimum iOS version | iOS 16 accepted |
 | First release priority | Finding and following recitation |
-| Correction | Later extension through the same session/event architecture |
+| Correction | Owner approved upstream correction integration on 2026-10-15; first source slice present, validation pending |
 | Analytics boundary | SDK passes observations; consuming applications calculate and persist analytics |
 | Page support | Make page-based analytics possible through optional developer-provided metadata mapping |
 | Repeated recitation | Expose the available observations; applications define repeat-counting policy |

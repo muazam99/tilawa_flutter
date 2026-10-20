@@ -85,6 +85,101 @@ native cleanup before releasing asset leases. The package supplies ONNX JNI R8
 keep rules and checks the native runtime version. iOS retains the provisional
 WebView/WASM backend and still needs physical-device validation.
 
+## Correction mode (source integration, validation pending)
+
+The pinned upstream correction controller is now exposed through the SDK. This
+is not a new grading algorithm, verified mistake-detection accuracy or tajweed
+certification. Tracking remains the default. Existing tracking device results
+do not validate this correction candidate.
+
+```dart
+final session = await TilawaSession.open(
+  assets: assets,
+  config: const TilawaRecognitionConfig(
+    mode: TilawaRecitationMode.correction,
+    expectedPassage: TilawaExpectedPassage(TilawaAyahRef(112, 1), ayahEnd: 4),
+  ),
+);
+// Listen for TilawaCorrectionChanged and TilawaCorrectionNote before feeding.
+// Show possible issues, not a guaranteed "wrong" pronunciation grade.
+```
+
+`session.snapshot.correction` contains the latest phase, possible issue, resume
+position, attempt and outcome. Error/corrected phases pause upstream recognition;
+retrying listens for a fresh prefix from the flagged ayah's beginning through the
+issue. Nonblocking notes (including upstream repetition notes) do not pause it.
+
+Before a correction action, dispose the SDK microphone (or pause your external
+producer). Already admitted feeds drain first, while new feeds are blocked during
+the action. Pass the run ID and attempt from the displayed event to reject stale
+UI actions:
+
+```dart
+// event is the TilawaCorrectionChanged that prompted this user action.
+// If attached, await microphone.dispose() before calling correct().
+await session.correct(
+  TilawaCorrectionAction.retry,
+  runId: event.context.runId,
+  attempt: event.state.attempt,
+);
+// Attach/start a fresh microphone only after the action completes.
+```
+
+Other actions are `stopRetry`, `dismiss`, `reviewLater`, `continueReading` and
+`close`, subject to the current phase. `stopCapture()` alone leaves the helper
+attached and is not sufficient for a correction action. Audio arriving while
+upstream awaits an action is explicitly drained without analysis and reported
+by `TilawaAudioDiscarded`; sample counters include that drained interval. It is
+never replayed into a retry. A chunk that raises an issue can include later audio
+already processed in that same chunk; this integration is not sample-accurate
+recording cut-off or speech/noise classification.
+
+`setExpectedPassage(passageOrNull)` is allowed only before audio in a ready run,
+with capture detached. Reset retains mode and the latest expected passage, clears
+issues and assigns a new run ID. Stop is still terminal: it explicitly closes an
+open issue/retry before upstream flush, recording the deferred/corrected outcome.
+An issue first raised during finalization can be inspected but not retried in
+that closed run. Reset before starting another reading.
+
+Whole-ayah fallback is tracking-only (`config.effectiveFallback`): its synthetic
+all-ok tallies are unsuitable for correction and must not escape an expected
+passage. Structural rules are opt-in through `structuralCorrection` (`off`,
+`onStop`, `onPause`); default off preserves existing consumers. The diagnostic
+consumer uses guarded upstream ayah-order and similar-verse checks on Stop, the
+upstream's original evaluation timing. The encoder slip head stays disabled.
+
+`wordEvidence: true` adds `TilawaWordEvidence`, a full replacement snapshot with
+revision/attempt identity, pending/correct/uncertain/wrong/skipped aligner states
+and available distance, margin, heard-ratio, vowel/GOP/repetition evidence.
+Non-pending is not irreversible stability. Acoustic spans/timestamps and a
+speech/noise verdict are not available in this observation. Do not union it or
+interpret `correct` as certified pronunciation.
+
+`TilawaPassageStartMonitor` is an experimental separate assessment for one
+original run/attempt. It combines clear advancing later-ayah evidence with a
+bounded independent free-decode prefix comparison (first20..32phoneme characters,
+up to three later ayah starts within the expected passage). It does not trust
+the forced cursor or missing leading verdicts. Silence, ambiguous/short openings,
+single-ayah ranges and restarts can remain unresolved. It reports only alignment
+support or a possible skipped start, never a complete grade or a universal wrong
+starting-point detector. It does not pause the upstream correction controller.
+
+Upstream leading-ayah omissions are not covered by its between-segment structural
+rules. Controlled pinned-corpus phoneme tests reproduce112:2instead of112:1,
+validate the independent comparison and exercise clean-versus-skipped monitor
+results. This is synthetic decoder evidence, not measured microphone accuracy.
+Real-recitation calibration, acoustic spans, production reader integration and
+startup optimization remain subsequent work.
+
+Maintainer checks: `flutter test test/correction_session_test.dart` and
+`node tool/test_correction_runtime.mjs` (the latter uses the prototype's locked
+esbuild installation and verified pinned source cache). Tadabbur's temporary
+profile/debug diagnostics screen is a separate local consumer, not SDK UI.
+Set `TILAWA_TEST_CORPUS` to the pinned corpus file to include controlled engine
+tests (hash checked); optional `TILAWA_START_EVIDENCE` exports only synthetic
+snapshots for the corresponding Dart integration test. No corpus/audio is copied
+into the public package. A test without these inputs skips the optional case.
+
 ## Downloaded or bundled assets
 
 ```dart

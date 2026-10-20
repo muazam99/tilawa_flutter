@@ -8,10 +8,12 @@ import 'capture_binding.dart';
 import 'models.dart';
 import 'runtime/webview_adapter.dart';
 import 'runtime/native_adapter.dart';
+import 'runtime/correction_protocol.dart';
 
 /// One owned runtime with serialized, reset-delimited recognition runs.
 final class TilawaSession {
-  TilawaSession._(this._assets, this._config, this._resolver);
+  TilawaSession._(this._assets, this._config, this._resolver)
+    : _expectedPassage = _config.expectedPassage;
   final TilawaPreparedAssets _assets;
   final TilawaRecognitionConfig _config;
   final TilawaMetadataResolver? _resolver;
@@ -39,6 +41,10 @@ final class TilawaSession {
   TilawaSessionResult? _lastResult;
   bool _quarantined = false;
   final _wordCounts = <TilawaAyahRef, int>{};
+  TilawaCorrectionState _correction = const TilawaCorrectionState();
+  TilawaExpectedPassage? _expectedPassage;
+  bool _controlling = false;
+  int _evidenceRevision = 0;
 
   /// Verifies and leases [assets], then opens an independently owned adapter.
   /// Android uses native ONNX in a worker. iOS uses provisional WebView WASM.
@@ -72,7 +78,24 @@ final class TilawaSession {
                       ? const TilawaNativeAdapterFactory()
                       : const TilawaWebViewAdapterFactory()))
               .create(assets, config, session._observe);
+      if (config.mode == TilawaRecitationMode.correction &&
+          (!session._adapter.capabilities.correction ||
+              session._adapter is! TilawaCorrectionAdapter)) {
+        throw const TilawaException(
+          'unsupportedCorrection',
+          'Adapter does not support correction controls.',
+        );
+      }
       final manifest = assets.manifest;
+      if ((config.wordEvidence &&
+              !session._adapter.capabilities.wordEvidence) ||
+          (config.structuralCorrection != TilawaStructuralCorrection.off &&
+              !session._adapter.capabilities.structuralCorrection)) {
+        throw const TilawaException(
+          'unsupportedCapability',
+          'Adapter lacks requested correction evidence/checks.',
+        );
+      }
       session.info = TilawaSessionInfo(
         engineId: manifest.engineId,
         engineVersion: manifest.engineVersion,
@@ -118,6 +141,9 @@ final class TilawaSession {
     processedSamples: _processed,
     lastSequence: _sequence,
     lastResult: _lastResult,
+    correction: _correction,
+    expectedPassage: _expectedPassage,
+    controlPending: _controlling,
   );
   TilawaEventContext _context() => TilawaEventContext(
     sessionId: _sessionId,
@@ -215,6 +241,15 @@ final class TilawaSession {
       }
       final batch = _batch!;
       await _validateReferences(batch);
+      final correction = result.correction;
+      if (_config.mode == TilawaRecitationMode.correction &&
+          correction == null) {
+        throw const TilawaException(
+          'invalidEngineOutput',
+          'Missing correction state.',
+        );
+      }
+      if (correction != null) await _validateCorrectionState(correction);
       _usable();
       // Validate every observation before committing this operation's batch.
       final oldPosition = _processed;
@@ -249,12 +284,37 @@ final class TilawaSession {
             'Final sequence before terminal operation.',
           );
         }
+        final changes = parsed.whereType<TilawaCorrectionChanged>();
+        if (correction != null &&
+            correction !=
+                (changes.isEmpty ? _correction : changes.last.state)) {
+          throw const TilawaException(
+            'invalidEngineOutput',
+            'Correction snapshot and observations disagree.',
+          );
+        }
+        var revision = _evidenceRevision;
+        for (final evidence in parsed.whereType<TilawaWordEvidence>()) {
+          if (evidence.revision <= revision ||
+              evidence.attempt < _correction.attempt ||
+              correction == null ||
+              evidence.attempt > correction.attempt) {
+            throw const TilawaException(
+              'invalidEngineOutput',
+              'Stale word evidence revision/attempt.',
+            );
+          }
+          revision = evidence.revision;
+        }
       } catch (_) {
         _processed = oldPosition;
         _sequence = oldSequence;
         rethrow;
       }
       _transcript = result.transcript;
+      if (correction != null) _correction = correction;
+      final evidence = parsed.whereType<TilawaWordEvidence>();
+      if (evidence.isNotEmpty) _evidenceRevision = evidence.last.revision;
       for (final event in parsed) {
         _events.add(event);
       }
@@ -286,6 +346,12 @@ final class TilawaSession {
   Future<TilawaFeedReceipt> feed(Float32List pcm) {
     try {
       _usable();
+      if (_controlling) {
+        throw const TilawaException(
+          'invalidState',
+          'Await correction control before feeding audio.',
+        );
+      }
       if (_state != TilawaLifecycle.ready &&
           _state != TilawaLifecycle.accepting) {
         throw const TilawaException(
@@ -500,6 +566,27 @@ final class TilawaSession {
               'Reset must clear engine state without recognition output.',
             );
           }
+          if (_config.mode == TilawaRecitationMode.correction &&
+              result.correction == null) {
+            throw const TilawaException(
+              'invalidEngineOutput',
+              'Missing reset correction state.',
+            );
+          }
+          final correction = result.correction;
+          if (correction != null &&
+              (correction.phase != TilawaCorrectionPhase.idle ||
+                  correction.issue != null ||
+                  correction.resume != null ||
+                  correction.outcome != null ||
+                  correction.attempt <= _correction.attempt)) {
+            throw const TilawaException(
+              'invalidEngineOutput',
+              'Reset did not clear correction state.',
+            );
+          }
+          _correction = correction ?? const TilawaCorrectionState();
+          _evidenceRevision = 0;
           _submitted = _processed = 0;
           _transcript = '';
           _lastResult = null;
@@ -524,6 +611,189 @@ final class TilawaSession {
       return _resetting!;
     } catch (error, stack) {
       return Future.error(error, stack);
+    }
+  }
+
+  /// Set/clear the expected passage before feeding a run. Reset retains it.
+  /// Dispose SDK capture first; no queued PCM may cross this control boundary.
+  Future<void> setExpectedPassage(TilawaExpectedPassage? passage) {
+    try {
+      passage?.validate();
+      _correctionControlReady();
+      if (_state != TilawaLifecycle.ready || _submitted != 0) {
+        throw const TilawaException(
+          'invalidState',
+          'Reset before changing the expected passage.',
+        );
+      }
+      final run = _runId;
+      _controlling = true;
+      return _enqueue(() async {
+        _usable();
+        if (_runId != run || _state != TilawaLifecycle.ready) {
+          throw const TilawaException(
+            'invalidState',
+            'Expected-passage control was superseded.',
+          );
+        }
+        if (passage != null) {
+          await _inputAyah(passage.start);
+          await _inputAyah(
+            TilawaAyahRef(passage.start.surah, passage.lastAyah),
+          );
+        }
+        if (_runId != run || _state != TilawaLifecycle.ready) {
+          throw const TilawaException(
+            'invalidState',
+            'Expected-passage control was superseded.',
+          );
+        }
+        await _engine(
+          () =>
+              (_adapter as TilawaCorrectionAdapter).setExpectedPassage(passage),
+          expectedSamples: _submitted,
+        );
+        _expectedPassage = passage;
+      }).whenComplete(() => _controlling = false);
+    } catch (error, stack) {
+      return Future.error(error, stack);
+    }
+  }
+
+  /// Take an upstream correction action for exactly the observed run/attempt.
+  /// Dispose capture first. Already admitted feeds drain before the action and
+  /// its identity is rechecked. Retry uses fresh audio from the flagged ayah's
+  /// start, not from the cursor word. No new feed is admitted during the action.
+  Future<void> correct(
+    TilawaCorrectionAction action, {
+    required String runId,
+    required int attempt,
+  }) {
+    try {
+      _correctionControlReady();
+      void validate() {
+        _usable();
+        if (runId != _runId ||
+            attempt != _correction.attempt ||
+            (_state != TilawaLifecycle.ready &&
+                _state != TilawaLifecycle.accepting)) {
+          throw const TilawaException(
+            'invalidState',
+            'Stale or closed correction action.',
+          );
+        }
+        final phase = _correction.phase;
+        final allowed = switch (action) {
+          TilawaCorrectionAction.retry =>
+            phase == TilawaCorrectionPhase.error ||
+                phase == TilawaCorrectionPhase.corrected,
+          TilawaCorrectionAction.stopRetry =>
+            phase == TilawaCorrectionPhase.retrying,
+          TilawaCorrectionAction.dismiss =>
+            phase == TilawaCorrectionPhase.error,
+          TilawaCorrectionAction.continueReading =>
+            phase == TilawaCorrectionPhase.corrected,
+          TilawaCorrectionAction.reviewLater ||
+          TilawaCorrectionAction.close => phase != TilawaCorrectionPhase.idle,
+        };
+        if (!allowed) {
+          throw const TilawaException(
+            'invalidState',
+            'Correction action is not valid in this phase.',
+          );
+        }
+      }
+
+      validate();
+      _controlling = true;
+      return _enqueue(() async {
+        validate();
+        await _engine(
+          () => (_adapter as TilawaCorrectionAdapter).correct(action),
+          expectedSamples: _submitted,
+        );
+      }).whenComplete(() => _controlling = false);
+    } catch (error, stack) {
+      return Future.error(error, stack);
+    }
+  }
+
+  void _correctionControlReady() {
+    _usable();
+    if (_config.mode != TilawaRecitationMode.correction ||
+        !info.capabilities.correction ||
+        _adapter is! TilawaCorrectionAdapter) {
+      throw const TilawaException(
+        'unsupportedCorrection',
+        'Open a correction-capable session in correction mode.',
+      );
+    }
+    if (_controlling || _resetting != null || captureBindings[this] != null) {
+      throw const TilawaException(
+        'invalidState',
+        'Detach capture and await pending controls first.',
+      );
+    }
+  }
+
+  Future<void> _inputAyah(TilawaAyahRef ref) async {
+    final count = await _adapter.describeAyah(ref);
+    if (count <= 0) {
+      throw const TilawaException(
+        'invalidInput',
+        'Expected passage outside pinned corpus.',
+      );
+    }
+  }
+
+  Future<void> _validateCorrectionState(TilawaCorrectionState state) async {
+    if (state.attempt < 0 ||
+        (state.phase != TilawaCorrectionPhase.idle &&
+            (state.issue == null || state.resume == null)) ||
+        (state.phase == TilawaCorrectionPhase.corrected &&
+            state.outcome != TilawaCorrectionOutcome.corrected)) {
+      throw const TilawaException(
+        'invalidEngineOutput',
+        'Invalid correction state.',
+      );
+    }
+    final issue = state.issue;
+    if (issue != null) {
+      if (issue.corpusWordIndex < 0) {
+        throw const TilawaException(
+          'invalidEngineOutput',
+          'Invalid correction corpus index.',
+        );
+      }
+      await _validateCorrectionPosition(issue.position, words: issue.words);
+    }
+    final resume = state.resume;
+    if (resume != null) await _validateCorrectionPosition(resume);
+  }
+
+  Future<void> _validateCorrectionPosition(
+    TilawaWordRef position, {
+    int words = 1,
+  }) async {
+    if (position.ayah.surah < 1 ||
+        position.ayah.surah > 114 ||
+        position.ayah.ayah < 1) {
+      throw const TilawaException(
+        'invalidEngineOutput',
+        'Invalid correction ayah.',
+      );
+    }
+    final count = _wordCounts[position.ayah] ??= await _adapter.describeAyah(
+      position.ayah,
+    );
+    if (count <= 0 ||
+        position.indexInAyah < 0 ||
+        words < 1 ||
+        position.indexInAyah + words > count) {
+      throw const TilawaException(
+        'invalidEngineOutput',
+        'Correction word range outside ayah.',
+      );
     }
   }
 
@@ -657,6 +927,20 @@ final class TilawaSession {
     final refs = <Map>[];
     for (final observation in batch) {
       switch (observation['type']) {
+        case 'word_evidence':
+          if (observation['words'] is List) {
+            refs.addAll((observation['words'] as List).whereType<Map>());
+          }
+          if (observation['start_comparison'] is Map) {
+            refs.add(observation['start_comparison'] as Map);
+          }
+        case 'correction':
+          await _validateCorrectionState(
+            parseCorrectionState(observation['state']),
+          );
+        case 'correction_note':
+          final issue = parseCorrectionIssue(observation['issue']);
+          await _validateCorrectionPosition(issue.position, words: issue.words);
         case 'word_progress':
         case 'verse_match':
           refs.add(observation);
@@ -833,6 +1117,110 @@ final class TilawaSession {
           );
         }
         return TilawaWordProgress(context, ayah(data), index, count, matched);
+      case 'correction':
+        final state = parseCorrectionState(data['state']);
+        final count = integer(data['totalWords']);
+        if (count !=
+            (state.issue == null
+                ? 0
+                : _wordCounts[state.issue!.position.ayah])) {
+          throw const TilawaException(
+            'invalidEngineOutput',
+            'Correction word count differs from corpus.',
+          );
+        }
+        return TilawaCorrectionChanged(context, state);
+      case 'correction_note':
+        return TilawaCorrectionNote(
+          context,
+          parseCorrectionIssue(data['issue']),
+        );
+      case 'word_evidence':
+        final words = items(data['words']).map((item) {
+          final word = item as Map;
+          final ref = ayah(word);
+          final index = integer(word['word']);
+          final global = integer(word['wordIndex']);
+          final vowels = integer(word['vowelErrors']);
+          final state = switch (word['state']) {
+            'ok' => TilawaWordVerdictState.correct,
+            'unsure' => TilawaWordVerdictState.uncertain,
+            'wrong' => TilawaWordVerdictState.wrong,
+            'skipped' => TilawaWordVerdictState.skipped,
+            'pending' => TilawaWordVerdictState.pending,
+            _ => throw const TilawaException(
+              'invalidEngineOutput',
+              'Unknown alignment verdict.',
+            ),
+          };
+          if (index < 0 ||
+              index >= _wordCounts[ref]! ||
+              global < 0 ||
+              vowels < 0) {
+            throw const TilawaException(
+              'invalidEngineOutput',
+              'Invalid alignment word index.',
+            );
+          }
+          return TilawaWordVerdict(
+            position: TilawaWordRef(ref, index),
+            corpusWordIndex: global,
+            state: state,
+            distance: score(word['distance']),
+            margin: score(word['margin']),
+            heardRatio: score(word['heardRatio']),
+            vowelErrors: vowels,
+            vowelMargin: score(word['vowelMargin']),
+            gop: word['gop'] == null ? null : score(word['gop']),
+            gopNone: word['gopNone'] == null ? null : score(word['gopNone']),
+            repetitionGain: word['repGain'] == null
+                ? null
+                : score(word['repGain']),
+          );
+        }).toList();
+        final revision = integer(data['revision']);
+        final attempt = integer(data['attempt']);
+        final phonemes = integer(data['phoneme_count']);
+        if (revision < 1 ||
+            attempt < 0 ||
+            phonemes < 0 ||
+            words.map((word) => word.position).toSet().length != words.length ||
+            words.map((word) => word.corpusWordIndex).toSet().length !=
+                words.length) {
+          throw const TilawaException(
+            'invalidEngineOutput',
+            'Invalid alignment snapshot.',
+          );
+        }
+        final comparison = data['start_comparison'] as Map?;
+        return TilawaWordEvidence(
+          context,
+          revision: revision,
+          attempt: attempt,
+          phonemeCount: phonemes,
+          audioEnded: flag(data['audio_ended']),
+          words: words,
+          startComparison: comparison == null
+              ? null
+              : TilawaStartComparison(
+                  laterAyah: ayah(comparison),
+                  expectedDistance: score(comparison['expected_distance']),
+                  laterDistance: score(comparison['later_distance']),
+                  phonemes: integer(comparison['phonemes']),
+                ),
+        );
+      case 'audio_discarded':
+        final samples = integer(data['samples']);
+        if (samples <= 0 ||
+            samples > _config.maxChunkSamples ||
+            data['reason'] != 'correction_awaiting_action' ||
+            !_correction.awaitsAction) {
+          throw const TilawaException(
+            'invalidEngineOutput',
+            'Invalid discarded audio interval.',
+          );
+        }
+        return TilawaAudioDiscarded(context, samples);
       case 'raw_transcript':
         return TilawaTranscriptUpdated(
           context,

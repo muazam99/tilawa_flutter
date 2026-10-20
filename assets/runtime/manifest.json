@@ -6,8 +6,8 @@
   "artifacts": [
     {
       "name": "bridge.js",
-      "bytes": 728504,
-      "sha256": "bc22c6b388228c467e2cb9f0f6a9d7afcc58762f3d0849637e4860e66f545fe6"
+      "bytes": 734190,
+      "sha256": "42dd7437d2d3d6a54f078fede17974e62a264e35c29b55b68511c0b3fc014b43"
     },
     {
       "name": "FLUTTER_ONNXRUNTIME_LICENSE",
@@ -21,8 +21,8 @@
     },
     {
       "name": "native.js",
-      "bytes": 646406,
-      "sha256": "bb93c05bbe5843b3ae61a97e14b4116f9ea2d488cf7a35429a705a22cbeca689"
+      "bytes": 652855,
+      "sha256": "4c5826720b49ddfae11f880f5f9a44b0b3a292295e75518c372ac844c892c6f2"
     },
     {
       "name": "NPL-1.2.txt",

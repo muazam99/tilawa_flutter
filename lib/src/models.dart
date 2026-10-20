@@ -21,6 +21,109 @@ enum TilawaFinalization { complete, incomplete }
 
 enum TilawaTranscriptRepresentation { phonemes, arabicText, unknown }
 
+enum TilawaRecitationMode { tracking, correction }
+
+enum TilawaStructuralCorrection { off, onStop, onPause }
+
+/// Aligner classifications, not certified recitation/pronunciation grades.
+enum TilawaWordVerdictState { correct, uncertain, wrong, skipped, pending }
+
+enum TilawaCorrectionPhase { idle, error, retrying, corrected }
+
+enum TilawaCorrectionAction {
+  retry,
+  stopRetry,
+  dismiss,
+  reviewLater,
+  continueReading,
+  close,
+}
+
+enum TilawaCorrectionOutcome { dismissed, deferred, corrected }
+
+enum TilawaCorrectionKind {
+  possibleOmission,
+  possibleSubstitution,
+  possibleVowel,
+  possibleRepetition,
+  possibleSkippedAyah,
+  unclearAyah,
+}
+
+/// Inclusive ayah range in one surah. Only effective in correction mode.
+final class TilawaExpectedPassage {
+  const TilawaExpectedPassage(this.start, {this.ayahEnd});
+  final TilawaAyahRef start;
+  final int? ayahEnd;
+  int get lastAyah => ayahEnd ?? start.ayah;
+
+  void validate() {
+    if (start.surah < 1 ||
+        start.surah > 114 ||
+        start.ayah < 1 ||
+        lastAyah < start.ayah) {
+      throw const TilawaException('invalidInput', 'Invalid expected passage.');
+    }
+  }
+}
+
+/// A possible upstream issue, not a certified pronunciation/tajweed grade.
+final class TilawaCorrectionIssue {
+  const TilawaCorrectionIssue({
+    required this.position,
+    required this.corpusWordIndex,
+    required this.kind,
+    this.words = 1,
+    this.source,
+  });
+  final TilawaWordRef position;
+  final int corpusWordIndex;
+  final TilawaCorrectionKind kind;
+  final int words;
+  final String? source;
+  @override
+  bool operator ==(Object other) =>
+      other is TilawaCorrectionIssue &&
+      position == other.position &&
+      corpusWordIndex == other.corpusWordIndex &&
+      kind == other.kind &&
+      words == other.words &&
+      source == other.source;
+  @override
+  int get hashCode =>
+      Object.hash(position, corpusWordIndex, kind, words, source);
+}
+
+/// Correction state is separate from session lifecycle. Error/corrected pause
+/// recognition until an explicit action. Retry starts at the issue's ayah start.
+final class TilawaCorrectionState {
+  const TilawaCorrectionState({
+    this.phase = TilawaCorrectionPhase.idle,
+    this.issue,
+    this.resume,
+    this.attempt = 0,
+    this.outcome,
+  });
+  final TilawaCorrectionPhase phase;
+  final TilawaCorrectionIssue? issue;
+  final TilawaWordRef? resume;
+  final int attempt;
+  final TilawaCorrectionOutcome? outcome;
+  bool get awaitsAction =>
+      phase == TilawaCorrectionPhase.error ||
+      phase == TilawaCorrectionPhase.corrected;
+  @override
+  bool operator ==(Object other) =>
+      other is TilawaCorrectionState &&
+      phase == other.phase &&
+      issue == other.issue &&
+      resume == other.resume &&
+      attempt == other.attempt &&
+      outcome == other.outcome;
+  @override
+  int get hashCode => Object.hash(phase, issue, resume, attempt, outcome);
+}
+
 /// SDK failure with a stable code and suggested recovery category.
 /// Runtime or disposal failures require a fresh session, not an input retry.
 final class TilawaException implements Exception {
@@ -87,6 +190,10 @@ final class TilawaWordRef {
 /// Deadlines bound SDK waiting; they cannot preempt native OS calls.
 final class TilawaRecognitionConfig {
   const TilawaRecognitionConfig({
+    this.mode = TilawaRecitationMode.tracking,
+    this.expectedPassage,
+    this.structuralCorrection = TilawaStructuralCorrection.off,
+    this.wordEvidence = false,
     this.minWordFraction = 0.5,
     this.enableFallback = true,
     this.fallbackMaxDistance = 0.5,
@@ -98,8 +205,17 @@ final class TilawaRecognitionConfig {
     this.interruptionDeadline = const Duration(seconds: 10),
     this.disposalDeadline = const Duration(seconds: 10),
   });
+  final TilawaRecitationMode mode;
+  final TilawaExpectedPassage? expectedPassage;
+  final TilawaStructuralCorrection structuralCorrection;
+  final bool wordEvidence;
   final double minWordFraction;
+
+  /// Whole-ayah fallback is tracking-only. It fabricates all-ok tallies and
+  /// therefore cannot be used as correction evidence or escape a passage bound.
   final bool enableFallback;
+  bool get effectiveFallback =>
+      mode == TilawaRecitationMode.tracking && enableFallback;
   final double fallbackMaxDistance;
   final bool stayOnSurah;
   final Duration tailDuration;
@@ -112,6 +228,21 @@ final class TilawaRecognitionConfig {
   int get maxOutstandingSamples =>
       maxOutstandingAudioDuration.inMicroseconds * 16000 ~/ 1000000;
   void validate() {
+    expectedPassage?.validate();
+    if (mode != TilawaRecitationMode.correction &&
+        (structuralCorrection != TilawaStructuralCorrection.off ||
+            wordEvidence)) {
+      throw const TilawaException(
+        'invalidInput',
+        'Structural checks and word evidence require correction mode.',
+      );
+    }
+    if (expectedPassage != null && mode != TilawaRecitationMode.correction) {
+      throw const TilawaException(
+        'invalidInput',
+        'Expected passages require correction mode.',
+      );
+    }
     if (!minWordFraction.isFinite ||
         minWordFraction <= 0 ||
         minWordFraction > 1 ||
@@ -151,12 +282,16 @@ final class TilawaCapabilities {
     this.transcriptRepresentation = TilawaTranscriptRepresentation.phonemes,
     this.finalSequence = true,
     this.sampledTrackingState = true,
+    this.correction = false,
+    this.wordEvidence = false,
+    this.structuralCorrection = false,
   }) : observations = Set.unmodifiable(observations);
   final Set<String> observations;
   final TilawaTranscriptRepresentation transcriptRepresentation;
   final bool finalSequence;
   final bool sampledTrackingState;
-  bool get correction => false;
+  final bool correction;
+  final bool wordEvidence, structuralCorrection;
   bool get exactWordTimestamps => false;
 }
 
@@ -279,6 +414,81 @@ final class TilawaWordProgress extends TilawaEvent {
   final TilawaAyahRef ayah;
   final int wordIndex, totalWords;
   final List<int> matchedIndices;
+}
+
+final class TilawaCorrectionChanged extends TilawaEvent {
+  const TilawaCorrectionChanged(super.context, this.state);
+  final TilawaCorrectionState state;
+}
+
+/// Current replacement alignment snapshot. Non-pending words can still revise.
+/// No acoustic timestamp or speech-presence probability is fabricated here.
+final class TilawaWordVerdict {
+  const TilawaWordVerdict({
+    required this.position,
+    required this.corpusWordIndex,
+    required this.state,
+    required this.distance,
+    required this.margin,
+    required this.heardRatio,
+    required this.vowelErrors,
+    required this.vowelMargin,
+    this.gop,
+    this.gopNone,
+    this.repetitionGain,
+  });
+  final TilawaWordRef position;
+  final int corpusWordIndex;
+  final TilawaWordVerdictState state;
+  final double distance, margin, heardRatio, vowelMargin;
+  final int vowelErrors;
+  final double? gop, gopNone, repetitionGain;
+}
+
+/// Replace, never union. [revision] increases within a run; [attempt] separates
+/// correction/practice boundaries. [audioEnded] is not an immutable verdict seal.
+final class TilawaWordEvidence extends TilawaEvent {
+  TilawaWordEvidence(
+    super.context, {
+    required this.revision,
+    required this.attempt,
+    required this.phonemeCount,
+    required this.audioEnded,
+    required Iterable<TilawaWordVerdict> words,
+    this.startComparison,
+  }) : words = List.unmodifiable(words);
+  final int revision, attempt, phonemeCount;
+  final bool audioEnded;
+  final List<TilawaWordVerdict> words;
+  final TilawaStartComparison? startComparison;
+}
+
+/// Bounded free-decode prefix comparison, independent of forced tracker cursor.
+/// Distances are phoneme edit costs, not probabilities. Experimental evidence.
+final class TilawaStartComparison {
+  const TilawaStartComparison({
+    required this.laterAyah,
+    required this.expectedDistance,
+    required this.laterDistance,
+    required this.phonemes,
+  });
+  final TilawaAyahRef laterAyah;
+  final double expectedDistance, laterDistance;
+  final int phonemes;
+}
+
+/// Nonblocking upstream note. Unlike an error, it does not pause recognition.
+final class TilawaCorrectionNote extends TilawaEvent {
+  const TilawaCorrectionNote(super.context, this.issue);
+  final TilawaCorrectionIssue issue;
+}
+
+/// Input drained but not analyzed while upstream awaits a correction action.
+/// Stop/dispose capture before taking an action. This audio cannot enter a retry.
+final class TilawaAudioDiscarded extends TilawaEvent {
+  const TilawaAudioDiscarded(super.context, this.samples);
+  final int samples;
+  String get reason => 'correctionAwaitingAction';
 }
 
 /// Replacement transcript snapshot in the adapter's declared representation.
@@ -405,12 +615,18 @@ final class TilawaSessionSnapshot {
     required this.processedSamples,
     required this.lastSequence,
     this.lastResult,
+    this.correction = const TilawaCorrectionState(),
+    this.expectedPassage,
+    this.controlPending = false,
   });
   final String sessionId, runId;
   final TilawaLifecycle state;
   final TilawaTrackingState trackingState;
   final int submittedSamples, processedSamples, lastSequence;
   final TilawaSessionResult? lastResult;
+  final TilawaCorrectionState correction;
+  final TilawaExpectedPassage? expectedPassage;
+  final bool controlPending;
 }
 
 final class TilawaMetadataDescriptor {

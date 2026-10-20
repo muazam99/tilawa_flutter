@@ -58,8 +58,9 @@ final class TilawaMicrophone with WidgetsBindingObserver {
         'Capture needs a 480 ms session chunk limit and 1..8 pending chunks.',
       );
     }
-    if (session.snapshot.state != TilawaLifecycle.ready &&
-        session.snapshot.state != TilawaLifecycle.accepting) {
+    if (session.snapshot.controlPending ||
+        (session.snapshot.state != TilawaLifecycle.ready &&
+            session.snapshot.state != TilawaLifecycle.accepting)) {
       throw const TilawaException(
         'invalidState',
         'Attach capture only to a ready or accepting session.',
@@ -103,8 +104,9 @@ final class TilawaMicrophone with WidgetsBindingObserver {
     _stateTo(TilawaCaptureState.starting);
     _starting = (() async {
       try {
-        if (session.snapshot.state != TilawaLifecycle.ready &&
-            session.snapshot.state != TilawaLifecycle.accepting) {
+        if (session.snapshot.controlPending ||
+            (session.snapshot.state != TilawaLifecycle.ready &&
+                session.snapshot.state != TilawaLifecycle.accepting)) {
           throw const TilawaException(
             'invalidState',
             'Reset recognition before starting capture.',

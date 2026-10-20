@@ -15,3 +15,4 @@ export 'src/assets.dart'
 export 'src/models.dart';
 export 'src/adapter.dart';
 export 'src/session.dart';
+export 'src/passage_start.dart';

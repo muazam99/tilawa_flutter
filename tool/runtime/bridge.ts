@@ -1,6 +1,7 @@
 // SDK bridge protocol, pinned core baseline. Not the Phase 1 probe protocol.
 import * as ort from 'onnxruntime-web/wasm';
 import { createZipformerSession } from '@pinned/session';
+import { correct, setExpected, stop, structuralOptions, WordEvidencePublisher } from './correction';
 
 let session: Awaited<ReturnType<typeof createZipformerSession>> | null = null;
 let runtime: ort.InferenceSession | null = null;
@@ -9,6 +10,7 @@ let sequence: unknown[] | null = null;
 let score: number | null = null;
 let queue = Promise.resolve();
 let epoch = '';
+let evidence: WordEvidencePublisher;
 const post = (value: unknown) => (window as any).TilawaSdk.postMessage(JSON.stringify(value));
 const local = async (name: string) => {
   const response = await fetch(new URL(name, location.href));
@@ -20,7 +22,7 @@ const ready = () => {
   return session;
 };
 const snapshot = () => ({ samples, state: ready().engineState,
-  transcript: ready().transcript, sequence, score });
+  transcript: ready().transcript, sequence, score, correction: ready().correction.state });
 
 async function dispatch(method: string, data: Record<string, unknown> = {}) {
   switch (method) {
@@ -54,7 +56,7 @@ async function dispatch(method: string, data: Record<string, unknown> = {}) {
         [corpus, io] = loaded.slice(1);
       }
       session = await createZipformerSession({ session: runtime, Tensor: ort.Tensor,
-        corpus, io, structural: false, slipHead: false,
+        corpus, io, structural: structuralOptions(data.structuralCorrection), slipHead: false,
         minWordFraction: Number(data.minWordFraction), enableFallback: data.enableFallback === true,
         fallbackMaxDistance: Number(data.fallbackMaxDistance), stayOnSurah: data.stayOnSurah === true,
         tailSeconds: Number(data.tailSeconds), debug: data.debug === true,
@@ -63,7 +65,11 @@ async function dispatch(method: string, data: Record<string, unknown> = {}) {
           post({ kind: 'event', epoch, event });
         },
       });
-      session.setMode('tracking');
+      session.setMode(data.mode === 'correction' ? 'correction' : 'tracking');
+      setExpected(session, data.expectedPassage);
+      evidence = new WordEvidencePublisher(data.wordEvidence === true,
+        event => post({ kind: 'event', epoch, event }), corpus);
+      evidence.setExpected(data.expectedPassage);
       samples = 0; sequence = null; score = null;
       return snapshot();
     }
@@ -73,20 +79,26 @@ async function dispatch(method: string, data: Record<string, unknown> = {}) {
       const view = new DataView(bytes.buffer);
       const pcm = new Float32Array(bytes.length / 4);
       for (let i = 0; i < pcm.length; i++) pcm[i] = view.getFloat32(i * 4, true);
-      await ready().feed(pcm);
+      if (ready().correction.state.phase === 'error' || ready().correction.state.phase === 'corrected') {
+        post({ kind: 'event', epoch, event: { type: 'audio_discarded', samples: pcm.length,
+          reason: 'correction_awaiting_action' } });
+      } else await ready().feed(pcm);
       samples += pcm.length;
+      evidence.publish(ready());
       return snapshot();
     }
-    case 'stop': await ready().stop(); return snapshot();
-    case 'reset': ready().reset(); samples = 0; sequence = null; score = null; return snapshot();
+    case 'stop':
+      evidence.publish(ready());
+      await stop(ready(), () => evidence.publish(ready(), true));
+      return snapshot();
+    case 'reset': ready().reset(); evidence.reset(); samples = 0; sequence = null; score = null; return snapshot();
+    case 'setExpected': setExpected(ready(), data.passage); evidence.setExpected(data.passage); return snapshot();
+    case 'correct': correct(ready(), data.action); evidence.publish(ready()); return snapshot();
     case 'wordCount': {
       const surah = Number(data.surah), ayah = Number(data.ayah);
-      if (!Number.isInteger(surah) || !Number.isInteger(ayah) || surah < 1 || surah > 114 || ayah < 1) {
-        throw new Error('Invalid Quran reference');
-      }
+      if (!Number.isInteger(surah) || !Number.isInteger(ayah) || surah < 1 || surah > 114 || ayah < 1) return { words: 0 };
       const words = ready().wordCount(surah, ayah);
-      if (!Number.isInteger(words) || words <= 0) throw new Error('Ayah not in the pinned corpus');
-      return { words };
+      return { words: Number.isInteger(words) && words > 0 ? words : 0 };
     }
     case 'dispose': {
       session = null;

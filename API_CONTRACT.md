@@ -7,7 +7,7 @@ Owner approved moving to API design after the Android feasibility checkpoint. Ph
 ## 1. Scope and design decisions
 
 - One public package, `tilawa_flutter`, Android and iOS 16+ intended targets. Platform support cannot be advertised as verified until its release gates pass.
-- Recognition and tracking only. No correction, grading, application analytics, storage, UI or state-management dependency.
+- Recognition, tracking and an opt-in upstream correction extension (2026-10-15, section 12). No certified grading, application analytics, storage, UI or state-management dependency.
 - Core input is externally supplied mono 16 kHz float32 PCM. Microphone capture is a separable convenience layer.
 - A session owns one runtime and one recognition run at a time. Runtime sharing/pooling is not an initial guarantee.
 - Typed immutable observations through a Dart broadcast stream. No WebView, JavaScript, ONNX tensor or Qiyam types in the ordinary API.
@@ -53,7 +53,7 @@ abstract interface class TilawaSession {
 | `TilawaAyahRef` | `surah`, `ayah`, both 1-based; value equality/hash. Validate against the active corpus rather than guessed ayah counts. |
 | `TilawaWordRef` | Ayah reference plus 0-based `indexInAyah`, in the pinned recognition corpus's segmentation. |
 | `TilawaSessionInfo` | Engine ID/version, upstream commit, asset manifest ID, corpus SHA-256, corpus segmentation ID, adapter ID/version, actual platform, capabilities and effective recognition config. No microphone/device identifiers. |
-| `TilawaCapabilities` | Supported observation kinds, transcript representation, tracking-state availability, final-sequence support, correction=false, exact word timestamps=false. Describes adapter capability, not verified device performance. |
+| `TilawaCapabilities` | Supported observation kinds, transcript representation, tracking-state availability, final-sequence support, correction support (true for bundled adapters), exact word timestamps=false. Describes adapter capability, not verified device performance. |
 | `TilawaFeedReceipt` | Accepted input interval `[startSample, endSample)`, processed-through sample position when this operation completes. No recognition event list. |
 | `TilawaSessionResult` | Session/run IDs, end reason (`stop` or `interruption`), finalization status (`complete` or `incomplete`), optional engine sequence, optional sequence score, latest transcript snapshot/representation, submitted/processed samples, immutable warning list. |
 | `TilawaSequenceVerse` | Ayah reference and the upstream score. Sequence order is upstream first-seen tally order, not every reading occurrence. |
@@ -89,7 +89,7 @@ Facade serializes accepted engine operations, including metadata word-count quer
 
 Control operations are not queued as audio and cannot be rejected merely because the PCM buffer is full. New audio during a pending reset is rejected rather than implicitly assigned to the next run. The control arbiter preserves invocation order; reset/dispose are generation barriers. Calls queued behind disposal fail with disposed. Interrupt during resetting fails with invalidState; dispose during a control operation takes priority for closing admission and invalidates remaining work at its deadline.
 
-Reset retains verified assets, runtime resources, immutable config, capabilities and metadata resolver. It clears transcript, tallies, suppression history, candidate/progress state, sequence results and sample counters. A new run ID is assigned; session ID and session-wide event sequence remain unchanged. No configuration mutation method initially: open a new session for different recognition settings. Correction's expected-passage retention is outside this contract.
+Reset retains verified assets, runtime resources, immutable config, capabilities and metadata resolver. It clears transcript, tallies, suppression history, candidate/progress state, sequence results and sample counters. A new run ID is assigned; session ID and session-wide event sequence remain unchanged. Open a new session for a different recognition mode/settings. Correction retains the latest expected passage, which can be replaced/cleared before audio in a ready run (section 12).
 
 Deadlines bound the caller's wait, not a promise that native/WASM execution is preemptible. A timed-out runtime is quarantined, cannot receive further input or be reset for reuse, and its output is ignored. Cleanup failure is reported explicitly. Actual cancellation/renderer teardown behaviour must be established per adapter in Phase 3 and platform validation.
 
@@ -115,7 +115,7 @@ WebView/WASM backend. Runtime identity is exposed in session info.
 
 `TilawaRecognitionConfig` initially exposes only source-reviewed Zipformer options: `minWordFraction` (default 0.5, valid `(0,1]`), `enableFallback` (true), `fallbackMaxDistance` (0.5, `[0,1]`), `stayOnSurah` (false), `tailDuration` (2 s, proposed valid `[0,5 s]`), `diagnostics` (false), `maxChunkDuration` (1 s), `maxOutstandingAudioDuration` (2 s), interruption/disposal deadlines (proposed 10 s each). Durations must map to whole samples where applicable. Validate rather than silently clamp. Reject unsupported adapter options before creating a run.
 
-`allowGaps=false`, structural correction=false and slip head=false are fixed for the first release. Arbitrary engine knobs, legacy text-engine StreamingConfig presets and expected passages are not exposed. The recitation ZipformerSession uses EngineConfig, not the older StreamingConfig presets in core/types.ts; importing those presets would imply unsupported semantics.
+`allowGaps=false`, structural correction=false and slip head=false remain fixed. The 2026-10-15 extension adds `mode` and `expectedPassage`; see section 12. Arbitrary engine knobs and legacy text-engine StreamingConfig presets are not exposed. The recitation ZipformerSession uses EngineConfig, not the older StreamingConfig presets in core/types.ts; importing those presets would imply unsupported semantics.
 
 ## 5. Observations and identity
 
@@ -286,6 +286,106 @@ void onObservation(TilawaEvent event) {
 ```
 
 `renderProgress`, `renderTranscript` and `showRecognitionFailure` are application callbacks, not SDK functions. The sample does not implement microphone capture, page completion or persistence.
+
+## 12. Upstream correction extension (2026-10-15)
+
+SDK analyzer passes; 13 scripted Dart workflow tests and 7 pinned upstream
+controller/bridge tests pass with synthetic evidence. A temporary profile/debug
+Tadabbur diagnostics consumer is prepared; profile build/deployment and owner
+recitation checks are separate. No real-audio correction accuracy/native-reset
+acceptance yet. Historical tracking checks do not validate this candidate.
+
+- `TilawaRecognitionConfig.mode` defaults to `tracking`; opt into `correction`.
+  An optional `TilawaExpectedPassage(start, ayahEnd: ...)` is inclusive and within
+  one surah. Reject it in tracking mode. Validate endpoints against the active
+  corpus, not a display edition. The pinned `setExpected` constrains tracking.
+- `setExpectedPassage(passageOrNull)` requires correction mode, ready lifecycle,
+  no submitted audio and no attached SDK capture. Reset retains its latest value;
+  `snapshot.expectedPassage` is authoritative, while `info.config` records open
+  options. Mode stays immutable for an opened session.
+- `TilawaCorrectionChanged` preserves upstream phase (`idle`, `error`, `retrying`,
+  `corrected`), possible issue, resume position, attempt and outcome. Read the
+  latest state from `snapshot.correction` as well. Corpus/local word indices are
+  0-based. Validate issue/resume word bounds and compare operation snapshots with
+  the last corresponding event before committing any batch.
+- `TilawaCorrectionNote` is nonblocking. Categories preserve possible omission,
+  substitution, vowel, repetition, skipped ayah and unclear ayah. Not every
+  category fires in every context; upstream requires contextual anchors and
+  persistence, and does not infer arbitrary leading/trailing mistakes. No tajweed
+  grade or calibrated correctness/speech-presence probability is promised.
+- `correct(action, runId: ..., attempt: ...)` requires a current active run,
+  correction capability and detached SDK capture. Stop the external producer or
+  dispose the SDK helper first (`stopCapture()` alone leaves it attached).
+  Accepted PCM drains in order before the action; new feed/capture admission is
+  blocked during it (`snapshot.controlPending`). Validate run/attempt/phase both
+  at invocation and execution. Invalid/stale actions fail nonfatally.
+- Actions mirror upstream: retry from error/corrected; stopRetry from retrying;
+  dismiss from error; continueReading from corrected; reviewLater/close from any
+  non-idle phase. Retry requires a fresh clear prefix from the issue ayah's start.
+  Decoder/fbank/posterior state resets with the action. Native inference follows
+  the runner's zero processed-lens marker so recurrent tensors also reset after
+  correction or internal decoder resets, without reloading the model.
+- While error/corrected, upstream ignores new audio. The wrapper reports each
+  wholly ignored feed as `TilawaAudioDiscarded(samples)` with reason
+  `correctionAwaitingAction`. Receipts/counters advance over explicitly drained,
+  unanalyzed audio; they are not evidence of spoken or recognized duration.
+  A feed that raises the issue can already have processed its whole chunk.
+- Terminal Stop explicitly takes upstream `close` on an open issue/retry, then
+  flushes, so finalization still has exactly one final sequence. Close records
+  deferred/corrected outcome rather than claiming the issue was solved. Retry
+  audio is practice, not original-history transcript. An issue raised during
+  terminal flush remains observable but cannot be acted on in a stopped run.
+- `effectiveFallback` is false in correction mode regardless of tracking's
+  `enableFallback` preference. Upstream whole-ayah fallback fabricates all-ok
+  tallies and searches globally, so it must not provide correction evidence or
+  escape an expected passage. Tracking fallback remains unchanged.
+- `TilawaCorrectionAdapter` is an optional advanced adapter extension, avoiding
+  new mandatory methods on existing tracking-only adapters. Correction sessions
+  reject adapters lacking it/capability. Correction-capable bundled snapshots
+  include state; reset clears it without recognition events and advances attempt.
+- Structural rules were disabled in the first slice; the follow-up below makes
+  them opt-in. The slip head stays disabled, upstream correction thresholds stay
+  unchanged and no source/model/corpus upgrade is made.
+
+### Follow-up: structural checks and starting-point evidence
+
+`structuralCorrection` defaults to `off`; `onStop`/`onPause` enable guarded
+upstream ayah-order and similar-verse rules with the bundled pinned look-alike
+index. Native and WebView package the index through the verified source generator.
+Structural findings are possible issues, not guarantees, and require calibration
+on real recitation. The diagnostics consumer selects `onStop`. Terminal Stop
+closes open issues before flushing, then publishes/defer-closes all queued final
+structural findings before canonical completion. The issue history, not just the
+last idle state, must be shown by consumers. Closing a queued issue may raise
+another one, so a single close is insufficient. No second flush is performed.
+
+`wordEvidence` is opt-in and correction-only. `TilawaWordEvidence` is a full
+replacement snapshot (including empty), ordered by positive revision within the
+run and correction attempt. Reset restarts revision numbering; run ID changes.
+Known malformed/out-of-range/duplicate references and stale revisions invalidate
+the operation's whole batch. Optional nonfinite acoustic scores are absent, not
+invented finite values. Word states map upstream ok/unsure to correct/uncertain;
+pending is preserved. These are aligner classifications, not grading labels.
+No immutable stability flag, audio span or speech/noise verdict is fabricated.
+
+The separate `TilawaPassageStartMonitor` is experimental. Missing start words or
+cursor progress cannot alone flag an omission: the tracker can assign later
+audio to uncertain leading words. Starting support needs clear expected opening
+words. A possible skipped start needs at least two consecutive clear words at a
+later ayah's beginning, another advancing replacement with fresh phonemes, and
+independent free-prefix evidence (expected edit distance>=0.45, later<=0.2 and
+margin>=0.2). The comparison strips recognized preambles, uses the first20..32
+phoneme characters and considers up to three later starts inside the passage.
+It does not globally identify arbitrary speech. Bounds are experimental gates,
+not calibrated confidence. Adjacent similar openings, short/unclear audio,
+out-of-window starts and single-ayah ranges may remain unresolved.
+
+Monitor identity includes session/run/original attempt; retry evidence and stale
+revisions cannot certify the original beginning. Replacement evidence can revise
+a provisional assessment. An empty terminal snapshot does not by itself undo an
+already supported opening. Assessment is not a correction controller action;
+this diagnostic indicator does not auto-pause/retry or declare missing ayahs
+corrected. Real microphone accuracy, false alerts and latency remain unverified.
 
 ### Optional metadata
 

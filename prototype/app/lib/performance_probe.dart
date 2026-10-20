@@ -21,6 +21,7 @@ import 'package:tilawa_flutter/src/runtime/native_adapter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
 
 import 'audio_fixture.dart';
+import 'correction_replay_probe.dart';
 import 'native_probe_adapter.dart';
 import 'native_worker_probe.dart';
 import 'hybrid_probe.dart';
@@ -103,7 +104,9 @@ class _PerformanceProbeState extends State<_PerformanceProbe> {
         for (final file in TilawaAssetManifest.zipformerV1().files)
           file.name: 'assets/runtime/${file.name}',
       }).completed;
-      if (mode == 'sdk-optimized-check') {
+      if (mode == 'correction-replay') {
+        await runCorrectionReplay(assets, log, requireForeground);
+      } else if (mode == 'sdk-optimized-check') {
         await memoryProfile(assets);
         await sample('optimized-before-broader');
         await broader(assets);

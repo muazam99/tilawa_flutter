@@ -12,12 +12,14 @@ final class TilawaEngineSnapshot {
     required this.transcript,
     Iterable<TilawaSequenceVerse>? sequence,
     this.score,
+    this.correction,
   }) : sequence = sequence == null ? null : List.unmodifiable(sequence);
   final int consumedSamples;
   final TilawaTrackingState trackingState;
   final String transcript;
   final List<TilawaSequenceVerse>? sequence;
   final double? score;
+  final TilawaCorrectionState? correction;
 }
 
 abstract interface class TilawaEngineAdapterFactory {
@@ -39,4 +41,13 @@ abstract interface class TilawaEngineAdapter {
   Future<TilawaEngineSnapshot> reset();
   Future<int> describeAyah(TilawaAyahRef ayah);
   Future<void> dispose();
+}
+
+/// Optional extension. Existing tracking-only adapters need not implement it.
+/// Actions reset all acoustic/recurrent state while retaining model resources.
+abstract interface class TilawaCorrectionAdapter {
+  Future<TilawaEngineSnapshot> setExpectedPassage(
+    TilawaExpectedPassage? passage,
+  );
+  Future<TilawaEngineSnapshot> correct(TilawaCorrectionAction action);
 }

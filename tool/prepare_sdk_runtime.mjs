@@ -22,28 +22,34 @@ for (const entry of tree.tree.filter(e => e.type === 'blob' && e.path.startsWith
 }
 const output = join(root, 'assets/runtime');
 await mkdir(output, { recursive: true });
-// Native dependency licenses are checked-in distribution inputs. Refuse to
-// regenerate a bundle that silently loses their retained copyright notices.
-for (const name of ['QUICKJS_ENGINE_LICENSE', 'FLUTTER_ONNXRUNTIME_LICENSE']) {
-  await readFile(join(output, name));
+// Notices are tracked distribution inputs, not files from an ignored probe
+// installation. Verify their existing pinned identity before generating code.
+const previous = JSON.parse(await readFile(join(output, 'manifest.json'), 'utf8'));
+for (const name of ['QUICKJS_ENGINE_LICENSE', 'FLUTTER_ONNXRUNTIME_LICENSE',
+  'TILAWA_LICENSE', 'TILAWA_NOTICE.md', 'NPL-1.2.txt',
+  'ONNXRUNTIME_LICENSE', 'ONNXRUNTIME_ThirdPartyNotices.txt']) {
+  const bytes = await readFile(join(output, name));
+  const pinned = previous.artifacts.find(a => a.name === name);
+  if (!pinned || bytes.length !== pinned.bytes ||
+      createHash('sha256').update(bytes).digest('hex') !== pinned.sha256) {
+    throw new Error(`Distribution notice integrity mismatch: ${name}`);
+  }
 }
 await build({ entryPoints: [join(root, 'tool/runtime/native_bridge.ts')],
   outfile: join(output, 'native.js'), bundle: true, format: 'iife', platform: 'neutral',
   target: ['es2020'], legalComments: 'eof',
-  alias: { '@pinned/session': join(upstream, 'packages/core/src/recitation/session.ts') },
+   alias: Object.fromEntries(['session','phonemeCost','alignment','search'].map(name=>
+     [`@pinned/${name}`,join(upstream, `packages/core/src/recitation/${name}.ts`)])),
   plugins: [numericKernelPatch] });
 await build({ entryPoints: [join(root, 'tool/runtime/bridge.ts')],
   outfile: join(output, 'bridge.js'), bundle: true, format: 'esm', platform: 'browser',
   target: ['es2022'], legalComments: 'eof',
   nodePaths: [join(root, 'prototype/node_modules')],
-  alias: { '@pinned/session': join(upstream, 'packages/core/src/recitation/session.ts') } });
+   alias: Object.fromEntries(['session','phonemeCost','alignment','search'].map(name=>
+     [`@pinned/${name}`,join(upstream, `packages/core/src/recitation/${name}.ts`)])) });
 await copyFile(join(root, 'tool/runtime/index.html'), join(output, 'index.html'));
 for (const name of ['ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) {
   await copyFile(join(root, 'prototype/node_modules/onnxruntime-web/dist', name), join(output, name));
-}
-for (const name of ['TILAWA_LICENSE', 'TILAWA_NOTICE.md', 'NPL-1.2.txt',
-  'ONNXRUNTIME_LICENSE', 'ONNXRUNTIME_ThirdPartyNotices.txt']) {
-  await copyFile(join(root, 'prototype/app/assets/runtime', name), join(output, name));
 }
 const artifacts = [];
 for (const name of await readdir(output)) {
